@@ -1,25 +1,44 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 
 export default function QuizzesPage() {
   const [studentName, setStudentName] = useState("")
   const [score, setScore] = useState("")
   const [quizList, setQuizList] = useState([])
 
-  const handleSubmit = (e) => {
+  // 🔥 Fetch quizzes from backend
+  const fetchQuizzes = async () => {
+    const res = await fetch("/api/quizzes")
+    const data = await res.json()
+    setQuizList(data)
+  }
+
+  useEffect(() => {
+    fetchQuizzes()
+  }, [])
+
+  // 🔥 Send quiz to backend
+  const handleSubmit = async (e) => {
     e.preventDefault()
 
     if (!studentName || !score) return
 
-    const newQuiz = {
-      studentName,
-      score: Number(score),
-    }
+    await fetch("/api/quizzes", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        studentName,
+        score: Number(score),
+      }),
+    })
 
-    setQuizList([...quizList, newQuiz])
     setStudentName("")
     setScore("")
+    fetchQuizzes() // refresh list after adding
   }
 
   return (
@@ -77,3 +96,13 @@ export default function QuizzesPage() {
     </div>
   )
 }
+
+const router = useRouter()
+
+useEffect(() => {
+  const role = localStorage.getItem("role")
+  if (role !== "teacher") {
+    router.push("/login")
+  }
+}, [])
+
