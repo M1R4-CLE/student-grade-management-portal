@@ -1,5 +1,5 @@
 import { createSupabaseServerClient } from "@/app/lib/supabaseServer";
-import LogoutButton from "@/app/components/LogoutButton";
+import LogoutButton from "@/components/LogoutButton";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
