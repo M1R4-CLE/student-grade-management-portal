@@ -1,67 +1,41 @@
-'use client'
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+"use client";
+
+import { useState } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [role, setRole] = useState("student")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [err, setErr] = useState("");
+  const router = useRouter();
 
-  function handleLogin(e) {
-    e.preventDefault()
+  const onLogin = async (e) => {
+    e.preventDefault();
+    setErr("");
 
-    // ✅ demo auth: just store role (replace later with Supabase Auth)
-    localStorage.setItem("role", role)
-    localStorage.setItem("userEmail", email)
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) return setErr(error.message);
 
-    if (role === "teacher") router.push("/teacher/dashboard")
-    else router.push("/student/dashboard")
-  }
+    const userId = data.user.id;
+
+    const { data: profile, error: pErr } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", userId)
+      .single();
+
+    if (pErr) return setErr("Profile not found. Ask admin to create your profile.");
+
+    router.replace(profile.role === "teacher" ? "/teacher/Dashboard" : "/student/Dashboard");
+  };
 
   return (
-    <div style={{ padding: 24, maxWidth: 420 }}>
-      <h1>Login</h1>
-
-      <form onSubmit={handleLogin} style={{ display: "grid", gap: 12 }}>
-        <div>
-          <label>
-            <input
-              type="radio"
-              name="role"
-              checked={role === "teacher"}
-              onChange={() => setRole("teacher")}
-            />
-            Teacher
-          </label>
-          {"  "}
-          <label>
-            <input
-              type="radio"
-              name="role"
-              checked={role === "student"}
-              onChange={() => setRole("student")}
-            />
-            Student
-          </label>
-        </div>
-
-        <input
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          placeholder="Password"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-
-        <button type="submit">Log In</button>
-      </form>
-    </div>
-  )
+    <form onSubmit={onLogin}>
+      <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" />
+      <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" type="password" />
+      {err && <p style={{ color: "red" }}>{err}</p>}
+      <button type="submit">Login</button>
+    </form>
+  );
 }

@@ -1,48 +1,47 @@
-'use client'
-import { useMemo } from "react"
+import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { redirect } from "next/navigation";
 
-export default function StudentGrades() {
-  const gradebook = [
-    { code: "IS 101", name: "Data Structures", credits: 2, midterm: 78, final: 78 },
-    { code: "IS 102", name: "DBMS", credits: 3, midterm: 88, final: 88 },
-    { code: "IS 103", name: "SAD", credits: 4, midterm: 83, final: 83 },
-  ]
+export default async function GradesPage() {
+  const supabase = createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  const { totalCredits, weightedFinal } = useMemo(() => {
-    const creditsSum = gradebook.reduce((s, c) => s + c.credits, 0)
-    const weightedPoints = gradebook.reduce((s, c) => s + (c.final * c.credits), 0)
-    return {
-      totalCredits: creditsSum,
-      weightedFinal: creditsSum ? (weightedPoints / creditsSum).toFixed(2) : "0.00",
-    }
-  }, [gradebook])
+  if (!user) redirect("/Login");
+
+  const { data } = await supabase
+    .from("grades")
+    .select("*, courses(title, code)")
+    .eq("student_id", user.id);
 
   return (
     <div style={{ padding: 24 }}>
       <h1>My Grades</h1>
 
-      <table border="1" cellPadding="10">
-        <thead>
-          <tr>
-            <th>Course</th><th>Credits</th><th>Midterm</th><th>Final</th>
-          </tr>
-        </thead>
-        <tbody>
-          {gradebook.map((c) => (
-            <tr key={c.code}>
-              <td>{c.code} - {c.name}</td>
-              <td>{c.credits}</td>
-              <td>{c.midterm}%</td>
-              <td>{c.final}%</td>
+      {!data?.length ? (
+        <p>No grades available.</p>
+      ) : (
+        <table border={1} cellPadding={8}>
+          <thead>
+            <tr>
+              <th>Course</th>
+              <th>Prelim</th>
+              <th>Midterm</th>
+              <th>Final</th>
+              <th>Final Grade</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-
-      <p style={{ marginTop: 12 }}>
-        <b>Total Credits:</b> {totalCredits} &nbsp; | &nbsp;
-        <b>Weighted Final Average:</b> {weightedFinal}%
-      </p>
+          </thead>
+          <tbody>
+            {data.map((g, i) => (
+              <tr key={i}>
+                <td>{g.courses?.code} - {g.courses?.title}</td>
+                <td>{g.prelim}</td>
+                <td>{g.midterm}</td>
+                <td>{g.final_exam}</td>
+                <td><b>{g.final_grade}</b></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
     </div>
-  )
+  );
 }

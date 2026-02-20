@@ -1,19 +1,26 @@
-'use client'
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { redirect } from "next/navigation";
 
-export default function StudentDashboard() {
-  const router = useRouter()
+export default async function StudentDashboard() {
+  const supabase = createSupabaseServerClient();
+  const { data: { user } } = await supabase.auth.getUser();
 
-  useEffect(() => {
-    const role = localStorage.getItem("role")
-    if (role !== "student") router.replace("/login")
-  }, [router])
+  if (!user) redirect("/Login");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile || profile.role !== "student") {
+    redirect("/teacher/Dashboard");
+  }
 
   return (
     <div style={{ padding: 24 }}>
       <h1>Student Dashboard</h1>
-      <p>Overview: classes, pending grading, quick actions.</p>
+      <p>View your enrolled courses and grades.</p>
     </div>
-  )
+  );
 }
