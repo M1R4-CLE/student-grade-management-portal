@@ -1,97 +1,48 @@
-"use client"
-
+'use client'
 import { useMemo } from "react"
 
-export default function GradesPage() {
-  // Temporary static data (we connect database later)
-  const grades = {
-    quizzes: [85, 90, 88],
-    assignments: [92, 87],
-    activities: [95, 93, 90],
-    exam: 89,
-  }
+export default function StudentGrades() {
+  const gradebook = [
+    { code: "IS 101", name: "Data Structures", credits: 2, midterm: 78, final: 78 },
+    { code: "IS 102", name: "DBMS", credits: 3, midterm: 88, final: 88 },
+    { code: "IS 103", name: "SAD", credits: 4, midterm: 83, final: 83 },
+  ]
 
-  const calculateAverage = (arr) => {
-    if (!arr.length) return 0
-    return arr.reduce((a, b) => a + b, 0) / arr.length
-  }
-
-  const finalGrade = useMemo(() => {
-    const quizAvg = calculateAverage(grades.quizzes)
-    const assignAvg = calculateAverage(grades.assignments)
-    const actAvg = calculateAverage(grades.activities)
-
-    return (
-      quizAvg * 0.3 +
-      assignAvg * 0.3 +
-      actAvg * 0.2 +
-      grades.exam * 0.2
-    )
-  }, [])
-
-  const getLetterGrade = (grade) => {
-    if (grade >= 90) return "A"
-    if (grade >= 80) return "B"
-    if (grade >= 70) return "C"
-    if (grade >= 60) return "D"
-    return "F"
-  }
+  const { totalCredits, weightedFinal } = useMemo(() => {
+    const creditsSum = gradebook.reduce((s, c) => s + c.credits, 0)
+    const weightedPoints = gradebook.reduce((s, c) => s + (c.final * c.credits), 0)
+    return {
+      totalCredits: creditsSum,
+      weightedFinal: creditsSum ? (weightedPoints / creditsSum).toFixed(2) : "0.00",
+    }
+  }, [gradebook])
 
   return (
-    <div>
-      <h1 className="text-2xl font-bold mb-6">My Grade Card</h1>
+    <div style={{ padding: 24 }}>
+      <h1>My Grades</h1>
 
-      {/* Grade Table */}
-      <div className="overflow-x-auto bg-white rounded-lg shadow mb-6">
-        <table className="w-full text-left border-collapse">
-          <thead className="bg-zinc-200">
-            <tr>
-              <th className="p-3">Category</th>
-              <th className="p-3">Scores</th>
-              <th className="p-3">Average</th>
+      <table border="1" cellPadding="10">
+        <thead>
+          <tr>
+            <th>Course</th><th>Credits</th><th>Midterm</th><th>Final</th>
+          </tr>
+        </thead>
+        <tbody>
+          {gradebook.map((c) => (
+            <tr key={c.code}>
+              <td>{c.code} - {c.name}</td>
+              <td>{c.credits}</td>
+              <td>{c.midterm}%</td>
+              <td>{c.final}%</td>
             </tr>
-          </thead>
-          <tbody>
-            <tr className="border-t">
-              <td className="p-3">Quizzes (30%)</td>
-              <td className="p-3">{grades.quizzes.join(", ")}</td>
-              <td className="p-3">
-                {calculateAverage(grades.quizzes).toFixed(2)}
-              </td>
-            </tr>
+          ))}
+        </tbody>
+      </table>
 
-            <tr className="border-t">
-              <td className="p-3">Assignments (30%)</td>
-              <td className="p-3">{grades.assignments.join(", ")}</td>
-              <td className="p-3">
-                {calculateAverage(grades.assignments).toFixed(2)}
-              </td>
-            </tr>
-
-            <tr className="border-t">
-              <td className="p-3">Activities (20%)</td>
-              <td className="p-3">{grades.activities.join(", ")}</td>
-              <td className="p-3">
-                {calculateAverage(grades.activities).toFixed(2)}
-              </td>
-            </tr>
-
-            <tr className="border-t">
-              <td className="p-3">Exam (20%)</td>
-              <td className="p-3">{grades.exam}</td>
-              <td className="p-3">{grades.exam}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      {/* Final Grade Card */}
-      <div className="bg-black text-white p-6 rounded-lg shadow">
-        <h2 className="text-xl font-semibold mb-2">Final Grade</h2>
-        <p className="text-3xl font-bold">
-          {finalGrade.toFixed(2)} ({getLetterGrade(finalGrade)})
-        </p>
-      </div>
+      <p style={{ marginTop: 12 }}>
+        <b>Total Credits:</b> {totalCredits} &nbsp; | &nbsp;
+        <b>Weighted Final Average:</b> {weightedFinal}%
+      </p>
     </div>
   )
 }
