@@ -1,50 +1,96 @@
-import { createSupabaseServerClient } from "@/app/lib/supabaseServer";
-import LogoutButton from "@/app/components/LogoutButton";
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
+import LogoutButton from "@/components/LogoutButton";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
-export default async function TeacherDashboardPage() {
-  const supabase = createSupabaseServerClient();
-  const { data: userRes } = await supabase.auth.getUser();
-  const user = userRes?.user;
+export default function StudentDashboardPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [fullName, setFullName] = useState("");
+  const [courses, setCourses] = useState([]);
 
-  if (!user) redirect("/Login");
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, full_name")
-    .eq("id", user.id)
-    .single();
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData?.user;
 
-  if (!profile || profile.role !== "teacher") {
-    redirect("/student/Dashboard");
-  }
+      if (!user) {
+        router.replace("/Login");
+        return;
+      }
+
+      // Get profile (role + name)
+      const { data: profile, error: pErr } = await supabase
+        .from("profiles")
+        .select("full_name, role")
+        .eq("id", user.id)
+        .single();
+
+      if (pErr || !profile) {
+        router.replace("/Login");
+        return;
+      }
+
+      // Guard: only student can access
+      if (profile.role !== "student") {
+        router.replace("/teacher/Dashboard");
+        return;
+      }
+
+      setFullName(profile.full_name || "Student");
+
+      // Load student courses
+      const { data: enrollments } = await supabase
+        .from("enrollments")
+        .select("course_id, courses(id, code, title)")
+        .eq("student_id", user.id);
+
+      const list = (enrollments || [])
+        .map((e) => e.courses)
+        .filter(Boolean);
+
+      setCourses(list);
+      setLoading(false);
+    };
+
+    load();
+  }, [router]);
+
+  if (loading) return <div style={{ padding: 24 }}>Loading...</div>;
 
   return (
     <div style={{ padding: 24 }}>
-
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 16
-      }}>
-        <h1>Teacher Dashboard</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1>Student Dashboard</h1>
         <LogoutButton />
       </div>
 
-      <p style={{ marginBottom: 16 }}>
-        Welcome{profile?.full_name ? `, ${profile.full_name}` : ""}!
-      </p>
+      <p>Welcome, <b>{fullName}</b> 👋</p>
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <Link href="/teacher/Class-Management"><button>Class Management</button></Link>
-        <Link href="/teacher/Grade-Entry"><button>Grade Entry</button></Link>
-        <Link href="/teacher/messages"><button>Messages</button></Link>
-        <Link href="/teacher/Profile"><button>Profile</button></Link>
-        <Link href="/teacher/Settings"><button>Settings</button></Link>
+      <div style={{ marginTop: 16 }}>
+        <h2>Your Courses</h2>
+
+        {courses.length === 0 ? (
+          <p>No courses found.</p>
+        ) : (
+          <ul>
+            {courses.map((c) => (
+              <li key={c.id}>
+                <b>{c.code}</b> — {c.title}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
+      <div style={{ marginTop: 20 }}>
+        <Link href="/student/Grades">View Grades →</Link>
+      </div>
     </div>
   );
 }

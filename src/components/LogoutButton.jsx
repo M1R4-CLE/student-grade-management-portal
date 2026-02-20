@@ -8,20 +8,18 @@ export default function LogoutButton() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.push("/Login");
-    router.refresh();
+    router.replace("/Login");
   };
 
   return (
     <button
       onClick={handleLogout}
       style={{
-        padding: "6px 12px",
-        backgroundColor: "#dc2626",
-        color: "white",
-        border: "none",
-        borderRadius: "4px",
-        cursor: "pointer"
+        padding: "8px 12px",
+        borderRadius: 8,
+        border: "1px solid #ccc",
+        cursor: "pointer",
+        background: "white",
       }}
     >
       Logout

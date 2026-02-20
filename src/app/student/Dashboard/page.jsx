@@ -1,50 +1,69 @@
-import { createSupabaseServerClient } from "@/app/lib/supabaseServer";
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
 import LogoutButton from "@/components/LogoutButton";
-import Link from "next/link";
-import { redirect } from "next/navigation";
 
-export default async function StudentDashboardPage() {
-  const supabase = createSupabaseServerClient();
-  const { data: userRes } = await supabase.auth.getUser();
-  const user = userRes?.user;
+export default function StudentDashboardPage() {
+  const router = useRouter();
+  const [fullName, setFullName] = useState("");
+  const [courses, setCourses] = useState([]);
 
-  if (!user) redirect("/Login");
+  useEffect(() => {
+    const loadData = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, full_name")
-    .eq("id", user.id)
-    .single();
+      if (!user) {
+        router.replace("/Login");
+        return;
+      }
 
-  if (!profile || profile.role !== "student") {
-    redirect("/teacher/Dashboard");
-  }
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, role")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile || profile.role !== "student") {
+        router.replace("/Login");
+        return;
+      }
+
+      setFullName(profile.full_name || "Student");
+
+      const { data: enrollments } = await supabase
+        .from("enrollments")
+        .select("courses(id, code, title)")
+        .eq("student_id", user.id);
+
+      const list = (enrollments || [])
+        .map((e) => e.courses)
+        .filter(Boolean);
+
+      setCourses(list);
+    };
+
+    loadData();
+  }, [router]);
 
   return (
     <div style={{ padding: 24 }}>
-
-      <div style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        marginBottom: 16
-      }}>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
         <h1>Student Dashboard</h1>
         <LogoutButton />
       </div>
 
-      <p style={{ marginBottom: 16 }}>
-        Welcome{profile?.full_name ? `, ${profile.full_name}` : ""}!
-      </p>
+      <p>Welcome, <b>{fullName}</b></p>
 
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-        <Link href="/student/Grades"><button>My Grades</button></Link>
-        <Link href="/student/Courses"><button>My Courses</button></Link>
-        <Link href="/student/messages"><button>Messages</button></Link>
-        <Link href="/student/Profile"><button>Profile</button></Link>
-        <Link href="/student/Settings"><button>Settings</button></Link>
-      </div>
-
+      <h2>Your Courses</h2>
+      <ul>
+        {courses.map((c) => (
+          <li key={c.id}>
+            {c.code} — {c.title}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
