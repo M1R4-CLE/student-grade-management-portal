@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
+import LogoutButton from "@/components/LogoutButton";
 
 function computeFinal(prelim, midterm, finalExam) {
   const result = prelim * 0.3 + midterm * 0.3 + finalExam * 0.4;
@@ -9,6 +11,7 @@ function computeFinal(prelim, midterm, finalExam) {
 }
 
 export default function GradeEntryPage() {
+  const router = useRouter();
   const [courses, setCourses] = useState([]);
   const [courseId, setCourseId] = useState("");
   const [rows, setRows] = useState([]);
@@ -31,8 +34,18 @@ export default function GradeEntryPage() {
 
       const user = userRes.user;
       if (!user) {
-        setMessage("Please login first.");
-        setLoadingCourses(false);
+        router.replace("/login");
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile || profile.role !== "teacher") {
+        router.replace("/student/Dashboard");
         return;
       }
 
@@ -52,7 +65,7 @@ export default function GradeEntryPage() {
     }
 
     loadCourses();
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (!courseId) {
@@ -156,7 +169,10 @@ export default function GradeEntryPage() {
 
   return (
     <div style={{ padding: 24 }}>
-      <h1>Grade Entry</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1>Grade Entry</h1>
+        <LogoutButton />
+      </div>
 
       <div style={{ marginBottom: 12 }}>
         <select

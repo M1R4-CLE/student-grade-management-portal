@@ -6,7 +6,7 @@ export default async function StudentMessagesPage() {
   const { data: userRes } = await supabase.auth.getUser();
   const user = userRes?.user;
 
-  if (!user) redirect("/Login");
+  if (!user) redirect("/login");
 
   const { data: profile } = await supabase
     .from("profiles")

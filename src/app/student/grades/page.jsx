@@ -1,51 +1,55 @@
-import { createSupabaseServerClient } from "@/app/lib/supabaseServer";
-import { redirect } from "next/navigation";
+"use client";
 
-export default async function GradesPage() {
-  const supabase = createSupabaseServerClient();
-  const { data: userRes } = await supabase.auth.getUser();
-  const user = userRes?.user;
+import { useEffect, useState } from "react";
+import { supabase } from "@/app/lib/supabaseClient";
 
-  if (!user) redirect("/Login");
+export default function GradesPage() {
+  const [grades, setGrades] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setErr("");
 
-  if (profile?.role === "teacher") redirect("/teacher/Dashboard");
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
 
-  const { data: grades, error } = await supabase
-    .from("grades")
-    .select("prelim, midterm, final_exam, final_grade, courses(code, title)")
-    .eq("student_id", user.id)
-    .order("course_id", { ascending: true });
+      if (!user) {
+        setErr("Not logged in.");
+        setLoading(false);
+        return;
+      }
 
-  if (error) {
-    return (
-      <div style={{ padding: 24 }}>
-        <h1>My Grades</h1>
-        <p style={{ color: "red" }}>{error.message}</p>
-      </div>
-    );
-  }
+      const { data, error } = await supabase
+        .from("grades")
+        .select("prelim, midterm, final_exam, final_grade, courses(code, title)")
+        .eq("student_id", user.id)
+        .order("course_id", { ascending: true });
+
+      if (error) setErr(error.message);
+      setGrades(data || []);
+      setLoading(false);
+    };
+
+    load();
+  }, []);
+
+  if (loading) return <div style={{ padding: 10 }}>Loading...</div>;
+  if (err) return <div style={{ padding: 10, color: "red" }}>{err}</div>;
 
   return (
-    <div style={{ padding: 24 }}>
-      <h1 style={{ marginBottom: 12 }}>My Grades</h1>
+    <>
+      <h2>Gradebook</h2>
 
-      {!grades || grades.length === 0 ? (
+      {!grades.length ? (
         <p>No grades available yet.</p>
       ) : (
-        <table
-          border={1}
-          cellPadding={8}
-          style={{ width: "100%", borderCollapse: "collapse" }}
-        >
+        <table>
           <thead>
             <tr>
-              <th style={{ textAlign: "left" }}>Course</th>
+              <th>Course</th>
               <th>Prelim</th>
               <th>Midterm</th>
               <th>Final Exam</th>
@@ -56,7 +60,7 @@ export default async function GradesPage() {
             {grades.map((g, i) => (
               <tr key={i}>
                 <td>
-                  {g.courses?.code} - {g.courses?.title}
+                  <b>{g.courses?.code}</b> — {g.courses?.title}
                 </td>
                 <td style={{ textAlign: "center" }}>{g.prelim ?? 0}</td>
                 <td style={{ textAlign: "center" }}>{g.midterm ?? 0}</td>
@@ -69,6 +73,6 @@ export default async function GradesPage() {
           </tbody>
         </table>
       )}
-    </div>
+    </>
   );
 }

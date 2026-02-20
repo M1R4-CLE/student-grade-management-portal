@@ -8,20 +8,11 @@ export default function LogoutButton() {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    router.replace("/Login");
+    router.replace("/login");
   };
 
   return (
-    <button
-      onClick={handleLogout}
-      style={{
-        padding: "8px 12px",
-        borderRadius: 8,
-        border: "1px solid #ccc",
-        cursor: "pointer",
-        background: "white",
-      }}
-    >
+    <button className="ghost" onClick={handleLogout}>
       Logout
     </button>
   );

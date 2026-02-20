@@ -2,36 +2,56 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
+import LogoutButton from "@/components/LogoutButton";
 
 export default function ClassManagementPage() {
+  const router = useRouter();
   const [courses, setCourses] = useState([]);
   const [code, setCode] = useState("");
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
-
-  const loadCourses = async () => {
-    setMessage("");
-    const { data: userRes } = await supabase.auth.getUser();
-    const user = userRes?.user;
-
-    if (!user) {
-      setMessage("Please login first.");
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("courses")
-      .select("id, code, title")
-      .eq("teacher_id", user.id)
-      .order("id", { ascending: true });
-
-    if (error) setMessage(error.message);
-    setCourses(data || []);
-  };
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    loadCourses();
-  }, []);
+    const run = async () => {
+      setLoading(true);
+      setMessage("");
+
+      const { data: userRes } = await supabase.auth.getUser();
+      const user = userRes?.user;
+
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile || profile.role !== "teacher") {
+        router.replace("/student/Dashboard");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("courses")
+        .select("id, code, title")
+        .eq("teacher_id", user.id)
+        .order("id", { ascending: true });
+
+      if (error) setMessage(error.message);
+      setCourses(data || []);
+      setLoading(false);
+    };
+
+    run();
+  }, [router]);
+
+  if (loading) return <div style={{ padding: 24 }}>Loading...</div>;
 
   const createCourse = async (e) => {
     e.preventDefault();
@@ -69,9 +89,29 @@ export default function ClassManagementPage() {
     loadCourses();
   };
 
+  const loadCourses = async () => {
+    setMessage("");
+    const { data: userRes } = await supabase.auth.getUser();
+    const user = userRes?.user;
+
+    if (!user) return;
+
+    const { data, error } = await supabase
+      .from("courses")
+      .select("id, code, title")
+      .eq("teacher_id", user.id)
+      .order("id", { ascending: true });
+
+    if (error) setMessage(error.message);
+    setCourses(data || []);
+  };
+
   return (
     <div style={{ padding: 24 }}>
-      <h1 style={{ marginBottom: 12 }}>Class Management</h1>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1 style={{ marginBottom: 12 }}>Class Management</h1>
+        <LogoutButton />
+      </div>
 
       <form onSubmit={createCourse} style={{ marginBottom: 16 }}>
         <input

@@ -21,12 +21,16 @@ export default function LoginPage() {
 
     if (error) return setErr(error.message);
 
-    const userId = data.user.id;
+    // IMPORTANT: wait for session to exist
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData?.session?.user;
+
+    if (!user) return setErr("No session created. Try again.");
 
     const { data: profile, error: pErr } = await supabase
       .from("profiles")
       .select("role")
-      .eq("id", userId)
+      .eq("id", user.id)
       .single();
 
     if (pErr || !profile) return setErr("Profile not found. Ask admin to create your profile.");
@@ -35,7 +39,7 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="login-page" style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
+    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
       <form
         onSubmit={onLogin}
         style={{
