@@ -1,7 +1,7 @@
 import { createSupabaseServerClient } from "@/app/lib/supabaseServer";
 import { redirect } from "next/navigation";
 
-export default async function TeacherSettingsPage() {
+export default async function StudentSettingsPage() {
   const supabase = createSupabaseServerClient();
   const { data: userRes } = await supabase.auth.getUser();
   const user = userRes?.user;
@@ -14,7 +14,7 @@ export default async function TeacherSettingsPage() {
     .eq("id", user.id)
     .single();
 
-  if (!profile || profile.role !== "teacher") redirect("/student/Dashboard");
+  if (profile?.role === "teacher") redirect("/teacher/Dashboard");
 
   return (
     <div style={{ padding: 24 }}>
@@ -22,7 +22,7 @@ export default async function TeacherSettingsPage() {
       <p>This is a placeholder settings page.</p>
 
       <ul style={{ marginTop: 12 }}>
-        <li>Change password (optional)</li>
+        <li>Change password (can be added later)</li>
         <li>Notification preferences (optional)</li>
         <li>Theme (optional)</li>
       </ul>

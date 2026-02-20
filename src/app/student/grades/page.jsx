@@ -1,42 +1,69 @@
-import { createSupabaseServerClient } from "@/lib/supabaseServer";
+import { createSupabaseServerClient } from "@/app/lib/supabaseServer";
 import { redirect } from "next/navigation";
 
 export default async function GradesPage() {
   const supabase = createSupabaseServerClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { data: userRes } = await supabase.auth.getUser();
+  const user = userRes?.user;
 
   if (!user) redirect("/Login");
 
-  const { data } = await supabase
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role === "teacher") redirect("/teacher/Dashboard");
+
+  const { data: grades, error } = await supabase
     .from("grades")
-    .select("*, courses(title, code)")
-    .eq("student_id", user.id);
+    .select("prelim, midterm, final_exam, final_grade, courses(code, title)")
+    .eq("student_id", user.id)
+    .order("course_id", { ascending: true });
+
+  if (error) {
+    return (
+      <div style={{ padding: 24 }}>
+        <h1>My Grades</h1>
+        <p style={{ color: "red" }}>{error.message}</p>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: 24 }}>
-      <h1>My Grades</h1>
+      <h1 style={{ marginBottom: 12 }}>My Grades</h1>
 
-      {!data?.length ? (
-        <p>No grades available.</p>
+      {!grades || grades.length === 0 ? (
+        <p>No grades available yet.</p>
       ) : (
-        <table border={1} cellPadding={8}>
+        <table
+          border={1}
+          cellPadding={8}
+          style={{ width: "100%", borderCollapse: "collapse" }}
+        >
           <thead>
             <tr>
-              <th>Course</th>
+              <th style={{ textAlign: "left" }}>Course</th>
               <th>Prelim</th>
               <th>Midterm</th>
-              <th>Final</th>
+              <th>Final Exam</th>
               <th>Final Grade</th>
             </tr>
           </thead>
           <tbody>
-            {data.map((g, i) => (
+            {grades.map((g, i) => (
               <tr key={i}>
-                <td>{g.courses?.code} - {g.courses?.title}</td>
-                <td>{g.prelim}</td>
-                <td>{g.midterm}</td>
-                <td>{g.final_exam}</td>
-                <td><b>{g.final_grade}</b></td>
+                <td>
+                  {g.courses?.code} - {g.courses?.title}
+                </td>
+                <td style={{ textAlign: "center" }}>{g.prelim ?? 0}</td>
+                <td style={{ textAlign: "center" }}>{g.midterm ?? 0}</td>
+                <td style={{ textAlign: "center" }}>{g.final_exam ?? 0}</td>
+                <td style={{ textAlign: "center" }}>
+                  <b>{g.final_grade ?? 0}</b>
+                </td>
               </tr>
             ))}
           </tbody>

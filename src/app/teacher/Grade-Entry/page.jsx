@@ -17,7 +17,6 @@ export default function GradeEntryPage() {
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Load teacher courses
   useEffect(() => {
     async function loadCourses() {
       setLoadingCourses(true);
@@ -55,7 +54,6 @@ export default function GradeEntryPage() {
     loadCourses();
   }, []);
 
-  // Load enrolled students
   useEffect(() => {
     if (!courseId) {
       setRows([]);
@@ -84,17 +82,19 @@ export default function GradeEntryPage() {
         .eq("course_id", courseId);
 
       const gradeMap = new Map();
-      (gradesData || []).forEach(g => gradeMap.set(g.student_id, g));
+      (gradesData || []).forEach((g) => gradeMap.set(g.student_id, g));
 
-      const formatted = (enrollData || []).map(s => {
+      const formatted = (enrollData || []).map((s) => {
         const existing = gradeMap.get(s.student_id);
 
         const prelim = Number(existing?.prelim || 0);
         const midterm = Number(existing?.midterm || 0);
         const final_exam = Number(existing?.final_exam || 0);
-        const final_grade = existing?.final_grade != null
-          ? Number(existing.final_grade)
-          : computeFinal(prelim, midterm, final_exam);
+
+        const final_grade =
+          existing?.final_grade != null
+            ? Number(existing.final_grade)
+            : computeFinal(prelim, midterm, final_exam);
 
         return {
           student_id: s.student_id,
@@ -114,17 +114,11 @@ export default function GradeEntryPage() {
   }, [courseId]);
 
   const handleChange = (id, field, value) => {
-    setRows(prev =>
-      prev.map(r => {
+    setRows((prev) =>
+      prev.map((r) => {
         if (r.student_id !== id) return r;
-
         const updated = { ...r, [field]: value };
-        updated.final_grade = computeFinal(
-          updated.prelim,
-          updated.midterm,
-          updated.final_exam
-        );
-
+        updated.final_grade = computeFinal(updated.prelim, updated.midterm, updated.final_exam);
         return updated;
       })
     );
@@ -135,7 +129,6 @@ export default function GradeEntryPage() {
       setMessage("Please select a course first.");
       return;
     }
-
     if (!rows.length) {
       setMessage("No students to save.");
       return;
@@ -144,7 +137,7 @@ export default function GradeEntryPage() {
     setSaving(true);
     setMessage("Saving...");
 
-    const payload = rows.map(r => ({
+    const payload = rows.map((r) => ({
       course_id: Number(courseId),
       student_id: r.student_id,
       prelim: Number(r.prelim),
@@ -175,7 +168,7 @@ export default function GradeEntryPage() {
             {loadingCourses ? "Loading courses..." : "Select Course"}
           </option>
 
-          {courses.map(c => (
+          {courses.map((c) => (
             <option key={c.id} value={c.id}>
               {c.code} - {c.title}
             </option>
@@ -210,7 +203,7 @@ export default function GradeEntryPage() {
           </thead>
 
           <tbody>
-            {rows.map(r => (
+            {rows.map((r) => (
               <tr key={r.student_id}>
                 <td>{r.full_name}</td>
 
@@ -244,7 +237,9 @@ export default function GradeEntryPage() {
                   />
                 </td>
 
-                <td><b>{r.final_grade}</b></td>
+                <td>
+                  <b>{r.final_grade}</b>
+                </td>
               </tr>
             ))}
           </tbody>
