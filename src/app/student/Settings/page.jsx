@@ -2,7 +2,7 @@ import { createSupabaseServerClient } from "@/app/lib/supabaseServer";
 import { redirect } from "next/navigation";
 
 export default async function StudentSettingsPage() {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { data: userRes } = await supabase.auth.getUser();
   const user = userRes?.user;
 

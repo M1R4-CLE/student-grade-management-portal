@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -52,8 +52,8 @@ export default function StudentLayout({ children }) {
       fullName={fullName}
       studentId={studentId}
       upcoming={[
-        { title: "IS 205 - IT Infrastructure and Networking", when: "Feb 30 • EXAM • Online" },
-        { title: "IS 203 - Systems Analysis and Design", when: "Mar 02 • QUIZ • Room 301" },
+        { title: "IS 205 - IT Infrastructure and Networking", when: "Feb 28 - EXAM - Online" },
+        { title: "IS 203 - Systems Analysis and Design", when: "Mar 02 - QUIZ - Room 301" },
       ]}
     >
       {children}

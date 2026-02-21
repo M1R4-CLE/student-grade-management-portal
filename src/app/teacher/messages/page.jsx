@@ -1,8 +1,8 @@
-import { createSupabaseServerClient } from "@/app/lib/supabaseServer";
+﻿import { createSupabaseServerClient } from "@/app/lib/supabaseServer";
 import { redirect } from "next/navigation";
 
 export default async function TeacherMessagesPage() {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { data: userRes } = await supabase.auth.getUser();
   const user = userRes?.user;
 
@@ -22,8 +22,9 @@ export default async function TeacherMessagesPage() {
       <p>This is a placeholder. You can connect this to a Supabase messages table later.</p>
 
       <div style={{ marginTop: 12, padding: 12, border: "1px solid #ddd" }}>
-        <p><b>Sample:</b> “A student requested a grade clarification.”</p>
+        <p><b>Sample:</b> A student requested a grade clarification.</p>
       </div>
     </div>
   );
 }
+

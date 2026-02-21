@@ -3,29 +3,40 @@
 import { useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { useRouter } from "next/navigation";
+import BrandLogo from "@/components/BrandLogo";
+import Link from "next/link";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   const onLogin = async (e) => {
     e.preventDefault();
     setErr("");
+    setLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
 
-    if (error) return setErr(error.message);
+    if (error) {
+      setErr(error.message);
+      setLoading(false);
+      return;
+    }
 
-    // IMPORTANT: wait for session to exist
     const { data: sessionData } = await supabase.auth.getSession();
     const user = sessionData?.session?.user;
 
-    if (!user) return setErr("No session created. Try again.");
+    if (!user) {
+      setErr("No session created. Try again.");
+      setLoading(false);
+      return;
+    }
 
     const { data: profile, error: pErr } = await supabase
       .from("profiles")
@@ -33,46 +44,62 @@ export default function LoginPage() {
       .eq("id", user.id)
       .single();
 
-    if (pErr || !profile) return setErr("Profile not found. Ask admin to create your profile.");
+    if (pErr || !profile) {
+      setErr("Profile not found. Ask admin.");
+      setLoading(false);
+      return;
+    }
 
-    router.replace(profile.role === "teacher" ? "/teacher/Dashboard" : "/student/Dashboard");
+    router.replace(
+      profile.role === "teacher"
+        ? "/teacher/Dashboard"
+        : "/student/Dashboard"
+    );
   };
 
   return (
-    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
-      <form
-        onSubmit={onLogin}
-        style={{
-          width: 360,
-          padding: 20,
-          border: "1px solid #ddd",
-          borderRadius: 10,
-          background: "#fff",
-        }}
-      >
-        <h1 style={{ marginBottom: 12 }}>Login</h1>
+    <main className="loginWrap">
+      <div className="loginCard">
+        <div style={{ display: "grid", placeItems: "center", marginBottom: 20 }}>
+          <BrandLogo />
+          <div style={{ marginTop: 10, fontWeight: 700, textAlign: "center" }}>
+            Welcome to Student Grade
+            <br />
+            Management Portal
+          </div>
+        </div>
 
-        <input
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          style={{ width: "100%", padding: 10, marginBottom: 10 }}
-        />
+        <form onSubmit={onLogin} className="loginForm">
+          <input
+            className="loginInput"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email address"
+            type="email"
+            required
+          />
 
-        <input
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Password"
-          type="password"
-          style={{ width: "100%", padding: 10, marginBottom: 10 }}
-        />
+          <input
+            className="loginInput"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            type="password"
+            required
+          />
 
-        {err && <p style={{ color: "red", marginBottom: 10 }}>{err}</p>}
+          {err && <p className="loginError">{err}</p>}
+          
 
-        <button type="submit" style={{ width: "100%", padding: 10, cursor: "pointer" }}>
-          Login
-        </button>
-      </form>
+          <button className="loginBtn" type="submit" disabled={loading}>
+            {loading ? "LOGGING IN..." : "LOG IN"}
+          </button>
+          
+          <Link href="/forgot-password" className="forgotBtn">
+  Forgot Login
+</Link>
+        </form>
+      </div>
     </main>
   );
 }

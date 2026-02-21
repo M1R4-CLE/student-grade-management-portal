@@ -1,7 +1,15 @@
-export default function BrandLogo({ size = 38, compact = false }) {
+export default function BrandLogo({ size = 70, compact = false }) {
+  const titleSize = size * 0.55;   // scales main text
+  const subtitleSize = size * 0.22; // scales subtitle
+
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-      <svg width={size} height={size} viewBox="0 0 64 64" aria-label="Student Grade logo">
+    <div style={{ display: "flex", alignItems: "center", gap: size * 0.25 }}>
+      <svg
+        width={size}
+        height={size}
+        viewBox="0 0 64 64"
+        aria-label="Student Grade logo"
+      >
         <rect
           x="8"
           y="12"
@@ -25,11 +33,17 @@ export default function BrandLogo({ size = 38, compact = false }) {
 
       {!compact && (
         <div style={{ lineHeight: 1.1 }}>
-          <div style={{ fontSize: 20, fontWeight: 900 }}>
+          <div style={{ fontSize: titleSize, fontWeight: 900 }}>
             <span style={{ color: "var(--blue-main)" }}>Student </span>
             <span style={{ color: "var(--green-main)" }}>Grade</span>
           </div>
-          <div style={{ fontSize: 11, letterSpacing: 2, color: "var(--gray-text)" }}>
+          <div
+            style={{
+              fontSize: subtitleSize,
+              letterSpacing: 2,
+              color: "var(--gray-text)",
+            }}
+          >
             MANAGEMENT PORTAL
           </div>
         </div>

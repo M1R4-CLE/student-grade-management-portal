@@ -1,8 +1,8 @@
-import { createSupabaseServerClient } from "@/app/lib/supabaseServer";
+﻿import { createSupabaseServerClient } from "@/app/lib/supabaseServer";
 import { redirect } from "next/navigation";
 
 export default async function StudentProfilePage() {
-  const supabase = createSupabaseServerClient();
+  const supabase = await createSupabaseServerClient();
   const { data: userRes } = await supabase.auth.getUser();
   const user = userRes?.user;
 
@@ -34,8 +34,9 @@ export default async function StudentProfilePage() {
       <p><b>Email:</b> {user.email}</p>
 
       <p style={{ marginTop: 12 }}>
-        (Optional) Add an “Edit Profile” form later if needed.
+        (Optional) Add an Edit Profile form later if needed.
       </p>
     </div>
   );
 }
+

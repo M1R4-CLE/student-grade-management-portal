@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
@@ -69,7 +69,6 @@ export default function GradeEntryPage() {
 
   useEffect(() => {
     if (!courseId) {
-      setRows([]);
       return;
     }
 
@@ -125,6 +124,8 @@ export default function GradeEntryPage() {
 
     loadStudents();
   }, [courseId]);
+
+  const visibleRows = courseId ? rows : [];
 
   const handleChange = (id, field, value) => {
     setRows((prev) =>
@@ -193,7 +194,7 @@ export default function GradeEntryPage() {
 
         <button
           onClick={saveGrades}
-          disabled={saving || !courseId || rows.length === 0}
+          disabled={saving || !courseId || visibleRows.length === 0}
           style={{ marginLeft: 10 }}
         >
           {saving ? "Saving..." : "Save Grades"}
@@ -202,9 +203,9 @@ export default function GradeEntryPage() {
 
       {message && <p>{message}</p>}
 
-      {loadingStudents ? (
+      {loadingStudents && courseId ? (
         <p>Loading students...</p>
-      ) : rows.length === 0 ? (
+      ) : visibleRows.length === 0 ? (
         <p>Select a course to load students.</p>
       ) : (
         <table border={1} cellPadding={8}>
@@ -219,7 +220,7 @@ export default function GradeEntryPage() {
           </thead>
 
           <tbody>
-            {rows.map((r) => (
+            {visibleRows.map((r) => (
               <tr key={r.student_id}>
                 <td>{r.full_name}</td>
 
@@ -264,3 +265,4 @@ export default function GradeEntryPage() {
     </div>
   );
 }
+

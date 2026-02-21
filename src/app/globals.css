@@ -1,108 +1,238 @@
-:root {
-  --blue-main: #2F6FB3;
-  --green-main: #57B447;
-  --blue-dark: #1F4E8C;
-  --blue-light: #4A90E2;
-  --gray-text: #6E6E6E;
-
-  --bg-gradient-start: #f2f4f8;
-  --bg-gradient-end: #d9dde6;
-
-  --card-bg: rgba(255, 255, 255, 0.75);
-  --sidebar-bg: rgba(255, 255, 255, 0.65);
-
-  --border-light: rgba(0, 0, 0, 0.08);
-  --shadow-soft: 0 10px 25px rgba(0, 0, 0, 0.08);
-
-  --radius-sm: 12px;
-  --radius-md: 18px;
-  --radius-lg: 24px;
+:root{
+  --blue-main:#2f6fb3;
+  --green-main:#57b447;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+.loginWrap{
+  min-height:100vh;
+  display:grid;
+  place-items:center;
+  background: radial-gradient(circle at top, #ffffff 0%, #e9e9e9 55%, #cfcfcf 100%);
 }
 
-html,
-body {
-  font-family: "Segoe UI", Tahoma, sans-serif;
-  min-height: 100vh;
-  background: radial-gradient(
-    circle at top,
-    var(--bg-gradient-start) 0%,
-    var(--bg-gradient-end) 100%
-  );
-  color: #1f2937;
+.loginCard{
+  width: 420px;
+  padding: 22px 22px 18px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.70);
+  border: 1px solid rgba(0,0,0,.15);
+  box-shadow: 0 18px 45px rgba(0,0,0,.15);
+  backdrop-filter: blur(8px);
 }
 
-a {
-  text-decoration: none;
-  color: inherit;
+.roleRow{
+  display:flex;
+  justify-content:center;
+  gap: 22px;
+  margin: 10px 0 14px;
+  color:#333;
 }
 
-h1, h2, h3 { font-weight: 800; }
-h2 { color: var(--blue-main); margin-bottom: 10px; }
-p { color: #374151; }
-
-/* Buttons */
-button {
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  border: none;
-  padding: 8px 14px;
+.roleItem{
+  display:flex;
+  align-items:center;
+  gap: 8px;
   font-weight: 700;
-  transition: 0.2s ease;
+  letter-spacing: .5px;
 }
 
-button.primary {
-  background: var(--blue-main);
-  color: white;
-}
-button.primary:hover {
-  background: var(--blue-dark);
-}
-
-button.ghost {
-  background: rgba(255,255,255,0.7);
-  border: 1px solid var(--border-light);
-}
-button.ghost:hover {
-  background: rgba(255,255,255,0.9);
+.loginForm{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  align-items:center;   
 }
 
-/* Inputs */
-input, select {
+.loginInput{
+  width:85%;            /* makes it shorter */
+  max-width:300px;
+  padding:12px 14px;
+  border:1px solid rgba(0,0,0,.15);
+  background:rgba(255,255,255,.65);
+  outline:none;
+  border-radius:10px;
+}
+
+.loginInput:focus{
+  border-color: rgba(47,111,179,.6);
+  box-shadow: 0 0 0 3px rgba(47,111,179,.12);
+}
+
+.loginBtn{
+  width:85%;
+  max-width:300px;
+  padding:12px 14px;
+  border:1px solid rgba(0,0,0,.35);
+  background:rgba(255,255,255,.7);
+  font-weight:800;
+  cursor:pointer;
+  border-radius:10px;
+}
+
+.loginBtn:disabled{
+  opacity:.7;
+  cursor:not-allowed;
+}
+
+.forgotBtn{
+  margin-top: 2px;
+  background: transparent;
+  border: none;
+  color: #444;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.loginError{
+  color: #b91c1c;
+  margin: 0;
+  font-size: 13px;
+}
+
+/* ===== DASHBOARD LOOK (like your screenshot) ===== */
+
+body{
+  background:
+    radial-gradient(circle at 50% 0%, rgba(0,0,0,.18), transparent 55%),
+    linear-gradient(180deg, #f7f7f7 0%, #ececec 45%, #f7f7f7 100%);
+}
+
+.glassCard{
+  background: rgba(255,255,255,.78);
+  border: 1px solid rgba(0,0,0,.08);
+  border-radius: 18px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.08);
+  backdrop-filter: blur(10px);
+}
+
+.sectionTitle{
+  font-weight: 800;
+  color: var(--blue-main);
+  margin-top: 14px;
+}
+
+/* Search bar (pill) */
+.searchRow{
+  margin-top: 10px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.searchPill{
+  flex: 1;
+  display:flex;
+  align-items:center;
+  gap:10px;
   padding: 10px 14px;
   border-radius: 999px;
-  border: 1px solid var(--border-light);
-  background: rgba(255, 255, 255, 0.8);
-  outline: none;
-  transition: 0.2s ease;
-}
-input:focus, select:focus {
-  border-color: var(--blue-main);
-  box-shadow: 0 0 0 3px rgba(47, 111, 179, 0.15);
+  border: 1px solid rgba(0,0,0,.10);
+  background: rgba(255,255,255,.65);
 }
 
-/* Tables */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: var(--card-bg);
-  border-radius: var(--radius-md);
+.searchPill input{
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  outline: none !important;
+}
+
+.yearPill{
+  width: 170px;
+  border-radius: 999px;
+  padding: 10px 12px;
+}
+
+/* Featured banner */
+.featuredWrap{
+  display:grid;
+  grid-template-columns: 160px 1fr 160px;
+  gap: 14px;
+  align-items: center;
+}
+
+.featuredImg{
+  height: 120px;
+  border-radius: 18px;
+  overflow:hidden;
+  border: 1px solid rgba(0,0,0,.08);
+  position: relative;
+}
+
+.featuredImg img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+.featuredMid{
+  padding: 14px 16px;
+}
+
+.kicker{
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.featuredTitle{
+  font-weight: 900;
+  margin-top: 2px;
+}
+
+.featuredDesc{
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 6px;
+  line-height: 1.35;
+}
+
+/* Course cards with images */
+.courseGrid{
+  margin-top: 14px;
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.courseCardImg{
+  border-radius: 22px;
   overflow: hidden;
-  border: 1px solid var(--border-light);
+  border: 1px solid rgba(0,0,0,.08);
+  background: rgba(255,255,255,.65);
+  box-shadow: 0 10px 20px rgba(0,0,0,.06);
+  height: 170px;
+  position: relative;
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease;
 }
-thead { background: rgba(47, 111, 179, 0.10); }
-th { padding: 12px; font-weight: 800; text-align: left; }
-td { padding: 10px; border-top: 1px solid var(--border-light); }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-thumb {
-  background: rgba(47, 111, 179, 0.4);
-  border-radius: 20px;
+.courseCardImg:hover{
+  transform: translateY(-4px);
+  box-shadow: 0 18px 32px rgba(47,111,179,.18);
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(47, 111, 179, 0.6); }
+
+.courseCardImg img{
+  width:100%;
+  height:100%;
+  object-fit: cover;
+  display:block;
+  filter: saturate(1.05);
+}
+
+.courseOverlay{
+  position:absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,.00) 35%, rgba(0,0,0,.70) 100%);
+  display:flex;
+  align-items:flex-end;
+}
+
+.courseOverlayText{
+  width:100%;
+  padding: 14px;
+  color: white;
+  font-weight: 900;
+  text-shadow: 0 10px 25px rgba(0,0,0,.45);
+}

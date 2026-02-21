@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo } from "react";
 
@@ -54,8 +54,8 @@ export default function RightPanel({
             )}
           </div>
           <div style={{ display: "flex", gap: 10, color: "#6b7280" }}>
-            <span title="Notifications">🔔</span>
-            <span title="Logout">🚪</span>
+            <span title="Notifications">Alerts</span>
+            <span title="Session">Account</span>
           </div>
         </div>
 
@@ -70,7 +70,7 @@ export default function RightPanel({
             color: "#111827",
           }}
         >
-          🗓️ {dateStr}
+          Date: {dateStr}
         </div>
       </Card>
 
@@ -102,9 +102,9 @@ export default function RightPanel({
           }}
         >
           <div style={{ display: "flex", justifyContent: "space-between", color: "#6b7280", fontSize: 12 }}>
-            <span>◀</span>
+            <span>{"<"}</span>
             <span style={{ fontWeight: 900 }}>Sep 2025</span>
-            <span>▶</span>
+            <span>{">"}</span>
           </div>
 
           <div
