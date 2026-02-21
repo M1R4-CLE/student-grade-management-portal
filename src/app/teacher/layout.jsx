@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 import PageShell from "@/components/PageShell";
+import AgendaCalendar from "@/components/AgendaCalendar";
 
 export default function TeacherLayout({ children }) {
   const router = useRouter();

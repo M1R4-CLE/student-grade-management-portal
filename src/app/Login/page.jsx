@@ -58,11 +58,26 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="loginWrap">
+    <main
+      className="loginWrap"
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100dvh",
+        margin: 0,
+        padding: 0,
+        overflow: "hidden",
+        backgroundImage: "url('/images/BG.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
       <div className="loginCard">
-        <div style={{ display: "grid", placeItems: "center", marginBottom: 20 }}>
+        <div style={{ display: "scale(0.95)", placeItems: "center" }}>
           <BrandLogo />
-          <div style={{ marginTop: 10, fontWeight: 700, textAlign: "center" }}>
+          <div style={{ marginTop: 10, marginBottom: 10, fontWeight: 700, textAlign: "center" }}>
             Welcome to Student Grade
             <br />
             Management Portal
@@ -89,15 +104,14 @@ export default function LoginPage() {
           />
 
           {err && <p className="loginError">{err}</p>}
-          
 
           <button className="loginBtn" type="submit" disabled={loading}>
             {loading ? "LOGGING IN..." : "LOG IN"}
           </button>
-          
+
           <Link href="/forgot-password" className="forgotBtn">
-  Forgot Login
-</Link>
+            Forgot Login
+          </Link>
         </form>
       </div>
     </main>

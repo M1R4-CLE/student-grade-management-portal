@@ -1,6 +1,7 @@
 "use client";
 
 import LogoutButton from "@/components/LogoutButton";
+import AgendaCalendar from "@/components/AgendaCalendar";
 
 export default function TeacherDashboardPage() {
   return (
