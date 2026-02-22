@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { useRouter } from "next/navigation";
-import LogoutButton from "@/components/LogoutButton";
 
 function computeFinal(prelim, midterm, finalExam) {
   const result = prelim * 0.3 + midterm * 0.3 + finalExam * 0.4;
@@ -68,9 +67,7 @@ export default function GradeEntryPage() {
   }, [router]);
 
   useEffect(() => {
-    if (!courseId) {
-      return;
-    }
+    if (!courseId) return;
 
     async function loadStudents() {
       setLoadingStudents(true);
@@ -127,22 +124,31 @@ export default function GradeEntryPage() {
 
   const visibleRows = courseId ? rows : [];
 
+
   const handleChange = (id, field, value) => {
     setRows((prev) =>
       prev.map((r) => {
         if (r.student_id !== id) return r;
+
         const updated = { ...r, [field]: value };
-        updated.final_grade = computeFinal(updated.prelim, updated.midterm, updated.final_exam);
+        updated.final_grade = computeFinal(
+          updated.prelim,
+          updated.midterm,
+          updated.final_exam
+        );
+
         return updated;
       })
     );
   };
 
+  
   const saveGrades = async () => {
     if (!courseId) {
       setMessage("Please select a course first.");
       return;
     }
+
     if (!rows.length) {
       setMessage("No students to save.");
       return;
@@ -151,29 +157,59 @@ export default function GradeEntryPage() {
     setSaving(true);
     setMessage("Saving...");
 
+ 
     const payload = rows.map((r) => ({
       course_id: Number(courseId),
       student_id: r.student_id,
       prelim: Number(r.prelim),
       midterm: Number(r.midterm),
       final_exam: Number(r.final_exam),
-      final_grade: Number(r.final_grade),
     }));
 
     const { error } = await supabase
       .from("grades")
       .upsert(payload, { onConflict: "course_id,student_id" });
 
-    setMessage(error ? error.message : "Grades saved successfully!");
+    if (error) {
+      setMessage(error.message);
+      setSaving(false);
+      return;
+    }
+
+    
+    const { data: gradesData } = await supabase
+      .from("grades")
+      .select("student_id, prelim, midterm, final_exam, final_grade")
+      .eq("course_id", courseId);
+
+    if (gradesData) {
+      const gradeMap = new Map();
+      gradesData.forEach((g) => gradeMap.set(g.student_id, g));
+
+      setRows((prev) =>
+        prev.map((r) => {
+          const dbRow = gradeMap.get(r.student_id);
+          if (!dbRow) return r;
+
+          return {
+            ...r,
+            prelim: Number(dbRow.prelim ?? 0),
+            midterm: Number(dbRow.midterm ?? 0),
+            final_exam: Number(dbRow.final_exam ?? 0),
+            final_grade: Number(dbRow.final_grade ?? 0),
+          };
+        })
+      );
+    }
+
+    setMessage("Grades saved successfully!");
     setSaving(false);
   };
 
+
   return (
     <div style={{ padding: 24 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h1>Grade Entry</h1>
-        <LogoutButton />
-      </div>
+      <h1>Grade Entry</h1>
 
       <div style={{ marginBottom: 12 }}>
         <select
@@ -218,7 +254,6 @@ export default function GradeEntryPage() {
               <th>Final Grade</th>
             </tr>
           </thead>
-
           <tbody>
             {visibleRows.map((r) => (
               <tr key={r.student_id}>
@@ -265,4 +300,3 @@ export default function GradeEntryPage() {
     </div>
   );
 }
-

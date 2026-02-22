@@ -2,6 +2,8 @@
 
 import AppSidebar from "./AppSidebar";
 import RightPanel from "./RightPanel";
+import ToastCenter from "./ToastCenter";
+import { useRealtimeNotifications } from "./useRealtimeNotifications";
 
 export default function PageShell({
   title,
@@ -12,8 +14,13 @@ export default function PageShell({
   showRightPanel = true,
   upcoming = [],
 }) {
+  // 🔔 realtime notifications + toast popups
+  const { items, lastNew } = useRealtimeNotifications({ limit: 10 });
+
   return (
     <div style={{ padding: 20 }}>
+      <ToastCenter lastNotification={lastNew} />
+
       <div style={{ display: "flex", gap: 18, alignItems: "flex-start" }}>
         <AppSidebar role={role} />
 
@@ -39,7 +46,12 @@ export default function PageShell({
         </main>
 
         {showRightPanel && (
-          <RightPanel fullName={fullName || (role === "teacher" ? "Teacher" : "Student")} studentId={studentId} upcoming={upcoming} />
+          <RightPanel
+            fullName={fullName || (role === "teacher" ? "Teacher" : "Student")}
+            studentId={studentId}
+            upcoming={upcoming}
+            notifications={items}
+          />
         )}
       </div>
     </div>

@@ -2,9 +2,16 @@
 
 import { useMemo, useState } from "react";
 
-const WEEK_DAYS = ["S", "M", "T", "W", "T", "F", "S"];
+const WEEK_DAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 
-export default function AgendaCalendar() {
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
+function toKey(y, m, d) {
+  return `${y}-${pad2(m + 1)}-${pad2(d)}`;
+}
+
+export default function AgendaCalendar({ byDay = new Map(), onSelectDate }) {
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(new Date());
 
@@ -39,32 +46,70 @@ export default function AgendaCalendar() {
     selectedDate.getMonth() === month &&
     selectedDate.getDate() === day;
 
+  const pick = (day) => {
+    const d = new Date(year, month, day);
+    setSelectedDate(d);
+    onSelectDate?.(d);
+  };
+
   return (
-    <div className="rounded-2xl bg-white/60 p-4">
-      <div className="mb-3 flex items-center justify-between">
+    <div
+      style={{
+        border: "1px solid rgba(0,0,0,.06)",
+        borderRadius: 14,
+        padding: 10,
+        background: "rgba(255,255,255,.7)",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 10,
+        }}
+      >
         <button
           type="button"
           onClick={goPrevMonth}
-          className="px-2 text-slate-500 hover:text-slate-700"
-          aria-label="Previous month"
+          style={{
+            border: "none",
+            background: "transparent",
+            cursor: "pointer",
+            fontWeight: 900,
+          }}
         >
           ‹
         </button>
-        <p className="text-sm font-semibold text-slate-600">{monthTitle}</p>
+
+        <div style={{ fontWeight: 900 }}>{monthTitle}</div>
+
         <button
           type="button"
           onClick={goNextMonth}
-          className="px-2 text-slate-500 hover:text-slate-700"
-          aria-label="Next month"
+          style={{
+            border: "none",
+            background: "transparent",
+            cursor: "pointer",
+            fontWeight: 900,
+          }}
         >
           ›
         </button>
       </div>
 
-      <div className="grid grid-cols-7 gap-y-2 text-center text-sm text-slate-500">
-        {WEEK_DAYS.map((day) => (
-          <div key={day} className="text-xs font-medium">
-            {day}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(7, 1fr)",
+          gap: 6,
+          fontSize: 12,
+          textAlign: "center",
+        }}
+      >
+        {WEEK_DAYS.map((d) => (
+          <div key={d} style={{ fontWeight: 700, color: "#6b7280" }}>
+            {d}
           </div>
         ))}
 
@@ -72,19 +117,40 @@ export default function AgendaCalendar() {
           if (!day) return <div key={`empty-${index}`} />;
 
           const active = isSelected(day);
+          const key = toKey(year, month, day);
+          const hasEvents = (byDay.get(key) || []).length > 0;
 
           return (
             <button
               key={day}
-              type="button"
-              onClick={() => setSelectedDate(new Date(year, month, day))}
-              className={`mx-auto h-7 w-7 rounded-lg text-sm transition ${
-                active
-                  ? "bg-slate-800 font-semibold text-white"
-                  : "text-slate-700 hover:bg-slate-100"
-              }`}
+              onClick={() => pick(day)}
+              style={{
+                border: "none",
+                borderRadius: 10,
+                padding: "6px 0",
+                cursor: "pointer",
+                background: active ? "#111827" : "transparent",
+                color: active ? "white" : "#111827",
+                fontWeight: active ? 800 : 500,
+                position: "relative",
+              }}
             >
               {day}
+
+              {hasEvents && (
+                <span
+                  style={{
+                    position: "absolute",
+                    bottom: 3,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: 6,
+                    height: 6,
+                    borderRadius: 999,
+                    background: active ? "white" : "var(--blue-main)",
+                  }}
+                />
+              )}
             </button>
           );
         })}
