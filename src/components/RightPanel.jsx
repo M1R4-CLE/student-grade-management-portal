@@ -11,7 +11,6 @@ function Card({ title, children }) {
     <div
       style={{
         background: "var(--card-bg)",
-        border: "1px solid var(--border-light)",
         borderRadius: "var(--radius-md)",
         padding: 14,
         boxShadow: "var(--shadow-soft)",
@@ -19,10 +18,26 @@ function Card({ title, children }) {
       }}
     >
       {title ? (
-        <div style={{ fontWeight: 900, marginBottom: 10, color: "#111827" }}>
-          {title}
-        </div>
-      ) : null}
+  <div
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+      marginBottom: 10,
+    }}
+  >
+    <div style={{ fontWeight: 900, color: "#111827" }}>{title}</div>
+
+    <div
+      style={{
+        flex: 1,
+        height: 2,
+        background: "rgba(0,0,0,0.12)",
+        borderRadius: 999,
+      }}
+    />
+  </div>
+) : null}
       {children}
     </div>
   );
@@ -166,7 +181,16 @@ export default function RightPanel({
         items={notifications}
       />
 
-      <aside style={{ width: 320, display: "flex", flexDirection: "column", gap: 14 }}>
+      <aside
+  style={{
+    width: 320,
+    display: "flex",
+    flexDirection: "column",
+    gap: 14,
+    borderLeft: "1px solid #C9C9C9",
+    paddingLeft: 14, // optional: keeps spacing nice after the line
+  }}
+>
         {/* Header card */}
         <Card>
           <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
@@ -205,7 +229,7 @@ export default function RightPanel({
             style={{
               marginTop: 12,
               background: "rgba(0,0,0,.03)",
-              border: "1px solid rgba(0,0,0,.06)",
+              border: "1px solid rgba(0,0,0,.06)",  
               padding: "8px 10px",
               borderRadius: 12,
               fontSize: 12,

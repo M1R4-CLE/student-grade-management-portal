@@ -5,14 +5,26 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 import PageShell from "@/components/PageShell";
 
+function fmtWhen(dueAt, kind) {
+  const d = new Date(dueAt);
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
+  const type = String(kind || "").toUpperCase();
+  return `${date} - ${type}`;
+}
+
 export default function StudentLayout({ children }) {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [fullName, setFullName] = useState("Student");
-  const [studentId, setStudentId] = useState("2024130839");
+  const [studentId, setStudentId] = useState("");
+  const [upcoming, setUpcoming] = useState([]);
 
   useEffect(() => {
-    const checkAuth = async () => {
+    let cancelled = false;
+
+    const run = async () => {
+      setLoading(true);
+
       const { data: sessionData } = await supabase.auth.getSession();
       const user = sessionData?.session?.user;
 
@@ -21,13 +33,13 @@ export default function StudentLayout({ children }) {
         return;
       }
 
-      const { data: profile } = await supabase
+      const { data: profile, error: pErr } = await supabase
         .from("profiles")
-        .select("full_name, role")
+        .select("full_name, role, student_number")
         .eq("id", user.id)
         .single();
 
-      if (!profile) {
+      if (pErr || !profile) {
         router.replace("/login");
         return;
       }
@@ -37,25 +49,77 @@ export default function StudentLayout({ children }) {
         return;
       }
 
+      if (cancelled) return;
+
       setFullName(profile.full_name || "Student");
+      setStudentId(profile.student_number || "");
+
+      // Get enrolled course IDs
+      const { data: enrolls, error: eErr } = await supabase
+        .from("enrollments")
+        .select("course_id")
+        .eq("student_id", user.id);
+
+      if (cancelled) return;
+
+      if (eErr) {
+        setUpcoming([]);
+        setLoading(false);
+        return;
+      }
+
+      const courseIds = (enrolls || []).map((x) => x.course_id).filter(Boolean);
+
+      if (!courseIds.length) {
+        setUpcoming([]);
+        setLoading(false);
+        return;
+      }
+
+      // Fetch upcoming course events (future only)
+      const nowIso = new Date().toISOString();
+
+      const { data: events, error: evErr } = await supabase
+        .from("course_events")
+        .select("id, kind, title, due_at, courses(code)")
+        .in("course_id", courseIds)
+        .not("due_at", "is", null)
+        .gte("due_at", nowIso)
+        .order("due_at", { ascending: true })
+        .limit(6);
+
+      if (cancelled) return;
+
+      if (evErr) {
+        setUpcoming([]);
+        setLoading(false);
+        return;
+      }
+
+      // Convert to the exact shape your RightPanel expects: { title, when }
+      const mapped = (events || []).map((ev) => {
+        const code = ev.courses?.code ? `${ev.courses.code} - ` : "";
+        return {
+          title: `${code}${ev.title}`,
+          when: fmtWhen(ev.due_at, ev.kind),
+        };
+      });
+
+      setUpcoming(mapped);
       setLoading(false);
     };
 
-    checkAuth();
+    run();
+
+    return () => {
+      cancelled = true;
+    };
   }, [router]);
 
   if (loading) return <div style={{ padding: 40 }}>Loading...</div>;
 
   return (
-    <PageShell
-      role="student"
-      fullName={fullName}
-      studentId={studentId}
-      upcoming={[
-        { title: "IS 205 - IT Infrastructure and Networking", when: "Feb 28 - EXAM - Online" },
-        { title: "IS 203 - Systems Analysis and Design", when: "Mar 02 - QUIZ - Room 301" },
-      ]}
-    >
+    <PageShell role="student" fullName={fullName} studentId={studentId} upcoming={upcoming}>
       {children}
     </PageShell>
   );
