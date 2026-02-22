@@ -254,7 +254,7 @@ export default function StudentDashboardPage() {
 </button>
       </div>
 
-      {/* ✅ LOGOUT PROMPT MODAL */}
+   
       {showLogout && (
         <div
           style={{

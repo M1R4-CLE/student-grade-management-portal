@@ -11,6 +11,7 @@ function Card({ title, children }) {
     <div
       style={{
         background: "var(--card-bg)",
+        border: "1px solid rgba(0,0,0,.06)", 
         borderRadius: "var(--radius-md)",
         padding: 14,
         boxShadow: "var(--shadow-soft)",
