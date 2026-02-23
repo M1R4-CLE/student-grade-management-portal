@@ -1,12 +1,25 @@
 ﻿"use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
 
-function nowTime() {
-  return new Date().toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+function fmtTime(ts) {
+  try {
+    return new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  } catch {
+    return "";
+  }
+}
+
+function computeFolder(m, userId) {
+  if (m.sender_id === userId) return m.sender_trashed_at ? "trash" : "sent";
+  return m.recipient_trashed_at ? "trash" : "inbox";
 }
 
 export default function TeacherMessagesPage() {
+  const router = useRouter();
+
   const [folder, setFolder] = useState("inbox");
   const [search, setSearch] = useState("");
   const [pageSize, setPageSize] = useState(20);
@@ -19,26 +32,105 @@ export default function TeacherMessagesPage() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [status, setStatus] = useState("");
 
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      sender: "Daryll Masapa",
-      to: "teacher@school.edu",
-      subject: "Sir",
-      preview: "In re..",
-      time: "5:13 PM",
-      folder: "inbox",
-    },
-    {
-      id: 2,
-      sender: "Princess Jelyn Mae Villariz",
-      to: "teacher@school.edu",
-      subject: "Good Morn..",
-      preview: "",
-      time: "10:10 AM",
-      folder: "inbox",
-    },
-  ]);
+  const [userId, setUserId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [messages, setMessages] = useState([]);
+
+  useEffect(() => {
+    let channelA;
+    let channelB;
+
+    async function loadMessages(uid) {
+      const { data, error } = await supabase
+        .from("messages")
+        .select(
+          `
+          id, created_at, sender_id, recipient_id,
+          subject, body,
+          sender_trashed_at, recipient_trashed_at, recipient_read_at,
+          sender:profiles!messages_sender_id_fkey(full_name,email),
+          recipient:profiles!messages_recipient_id_fkey(full_name,email)
+        `
+        )
+        .or(`sender_id.eq.${uid},recipient_id.eq.${uid}`)
+        .order("created_at", { ascending: false })
+        .limit(200);
+
+      if (error) {
+        setStatus(error.message);
+        setMessages([]);
+        return;
+      }
+
+      const mapped = (data || []).map((m) => {
+        const senderName = m.sender?.full_name || m.sender?.email || "Unknown";
+        const preview = (m.body || "").slice(0, 32);
+        return {
+          ...m,
+          senderName,
+          preview,
+          time: fmtTime(m.created_at),
+          folder: computeFolder(m, uid),
+        };
+      });
+
+      setMessages(mapped);
+    }
+
+    async function boot() {
+      setLoading(true);
+      setStatus("");
+
+      const { data: userRes } = await supabase.auth.getUser();
+      const user = userRes?.user;
+
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile || profile.role !== "teacher") {
+        router.replace("/student/Dashboard");
+        return;
+      }
+
+      setUserId(user.id);
+      await loadMessages(user.id);
+
+      channelA = supabase
+        .channel(`messages-sender-${user.id}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "messages", filter: `sender_id=eq.${user.id}` },
+          () => loadMessages(user.id)
+        )
+        .subscribe();
+
+      channelB = supabase
+        .channel(`messages-recipient-${user.id}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "messages", filter: `recipient_id=eq.${user.id}` },
+          () => loadMessages(user.id)
+        )
+        .subscribe();
+
+      setLoading(false);
+    }
+
+    boot();
+
+    return () => {
+      if (channelA) supabase.removeChannel(channelA);
+      if (channelB) supabase.removeChannel(channelB);
+    };
+  }, [router]);
 
   const visibleMessages = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -46,7 +138,7 @@ export default function TeacherMessagesPage() {
       if (m.folder !== folder) return false;
       if (!q) return true;
       return (
-        (m.sender || "").toLowerCase().includes(q) ||
+        (m.senderName || "").toLowerCase().includes(q) ||
         (m.subject || "").toLowerCase().includes(q) ||
         (m.preview || "").toLowerCase().includes(q)
       );
@@ -55,14 +147,11 @@ export default function TeacherMessagesPage() {
   }, [messages, folder, search, pageSize]);
 
   const allChecked =
-    visibleMessages.length > 0 &&
-    visibleMessages.every((m) => selectedIds.includes(m.id));
+    visibleMessages.length > 0 && visibleMessages.every((m) => selectedIds.includes(m.id));
 
   const toggleSelectAll = () => {
     if (allChecked) {
-      setSelectedIds((prev) =>
-        prev.filter((id) => !visibleMessages.some((m) => m.id === id))
-      );
+      setSelectedIds((prev) => prev.filter((id) => !visibleMessages.some((m) => m.id === id)));
       return;
     }
     setSelectedIds((prev) => {
@@ -73,37 +162,72 @@ export default function TeacherMessagesPage() {
   };
 
   const toggleRow = (id) => {
-    setSelectedIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
-  const moveSelectedToTrash = () => {
-    if (!selectedIds.length) return;
-    setMessages((prev) =>
-      prev.map((m) => (selectedIds.includes(m.id) ? { ...m, folder: "trash" } : m))
-    );
+  const moveSelectedToTrash = async () => {
+    if (!selectedIds.length || !userId) return;
+
+    setStatus("Moving to Trash...");
+
+    const { error: e1 } = await supabase
+      .from("messages")
+      .update({ sender_trashed_at: new Date().toISOString() })
+      .eq("sender_id", userId)
+      .in("id", selectedIds);
+
+    const { error: e2 } = await supabase
+      .from("messages")
+      .update({ recipient_trashed_at: new Date().toISOString() })
+      .eq("recipient_id", userId)
+      .in("id", selectedIds);
+
+    if (e1 || e2) {
+      setStatus((e1 || e2)?.message || "Failed to move messages.");
+      return;
+    }
+
     setSelectedIds([]);
     setStatus("Selected messages moved to Trash.");
   };
 
-  const sendMessage = () => {
+  const sendMessage = async () => {
     if (!composeTo.trim()) {
       setStatus("Please enter recipient email.");
       return;
     }
+    if (!userId) {
+      setStatus("Not logged in.");
+      return;
+    }
 
-    const newMsg = {
-      id: Date.now(),
-      sender: "You",
-      to: composeTo.trim(),
-      subject: composeSubject.trim() || "(No Subject)",
-      preview: composeBody.trim().slice(0, 32),
-      time: nowTime(),
-      folder: "sent",
-    };
+    setStatus("Sending...");
 
-    setMessages((prev) => [newMsg, ...prev]);
+    const { data: rec, error: recErr } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("email", composeTo.trim())
+      .single();
+
+    if (recErr || !rec?.id) {
+      setStatus("Recipient not found. Make sure the email exists in profiles.");
+      return;
+    }
+
+    const { error } = await supabase.from("messages").insert([
+      {
+        sender_id: userId,
+        recipient_id: rec.id,
+        subject: composeSubject.trim() || "(No Subject)",
+        body: composeBody.trim(),
+      },
+    ]);
+
+    if (error) {
+      setStatus(error.message);
+      return;
+    }
+
     setComposeTo("");
     setComposeSubject("");
     setComposeBody("");
@@ -111,6 +235,8 @@ export default function TeacherMessagesPage() {
     setFolder("sent");
     setStatus("Message sent.");
   };
+
+  if (loading) return <div style={{ padding: 20 }}>Loading...</div>;
 
   return (
     <div style={{ padding: 20, background: "#f4f5f7", minHeight: "100%" }}>
@@ -122,24 +248,11 @@ export default function TeacherMessagesPage() {
           padding: 16,
         }}
       >
-        <div
-          style={{
-            fontSize: 22,
-            fontWeight: 700,
-            color: "#1f4d9c",
-            marginBottom: 14,
-          }}
-        >
+        <div style={{ fontSize: 22, fontWeight: 700, color: "#1f4d9c", marginBottom: 14 }}>
           Message Inbox
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "230px 1fr",
-            gap: 16,
-          }}
-        >
+        <div style={{ display: "grid", gridTemplateColumns: "230px 1fr", gap: 16 }}>
           <div>
             <button
               onClick={() => setComposeOpen(true)}
@@ -159,21 +272,9 @@ export default function TeacherMessagesPage() {
               COMPOSE
             </button>
 
-            <FolderButton
-              label="📨 Messages inbox"
-              active={folder === "inbox"}
-              onClick={() => setFolder("inbox")}
-            />
-            <FolderButton
-              label="✉️ Sent"
-              active={folder === "sent"}
-              onClick={() => setFolder("sent")}
-            />
-            <FolderButton
-              label="🗑️ Trash"
-              active={folder === "trash"}
-              onClick={() => setFolder("trash")}
-            />
+            <FolderButton label="📨 Messages inbox" active={folder === "inbox"} onClick={() => setFolder("inbox")} />
+            <FolderButton label="✉️ Sent" active={folder === "sent"} onClick={() => setFolder("sent")} />
+            <FolderButton label="🗑️ Trash" active={folder === "trash"} onClick={() => setFolder("trash")} />
           </div>
 
           <div>
@@ -221,7 +322,7 @@ export default function TeacherMessagesPage() {
                     placeholder="Search for.."
                     style={{ border: "none", outline: "none", flex: 1, fontSize: 14 }}
                   />
-                  <span style={{ fontSize: 14, color: "#777" }}>🔍</span>
+                  <span style={{ fontSize: 14, color: "#777" }}></span>
                 </div>
 
                 <select
@@ -269,7 +370,7 @@ export default function TeacherMessagesPage() {
                         onChange={() => toggleRow(m.id)}
                       />
                     </div>
-                    <div style={{ paddingRight: 10 }}>{m.sender}</div>
+                    <div style={{ paddingRight: 10 }}>{m.senderName}</div>
                     <div style={{ color: "#111827" }}>
                       {m.subject} {m.preview}
                     </div>
@@ -279,14 +380,7 @@ export default function TeacherMessagesPage() {
               )}
             </div>
 
-            <div
-              style={{
-                marginTop: 10,
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-              }}
-            >
+            <div style={{ marginTop: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <button
                 onClick={moveSelectedToTrash}
                 style={{
@@ -302,9 +396,7 @@ export default function TeacherMessagesPage() {
               >
                 Move selected to Trash
               </button>
-              <div style={{ fontSize: 13, color: "#8a8f98" }}>
-                {visibleMessages.length} shown
-              </div>
+              <div style={{ fontSize: 13, color: "#8a8f98" }}>{visibleMessages.length} shown</div>
             </div>
 
             {status && <div style={{ marginTop: 8, fontSize: 13, color: "#3d7f35" }}>{status}</div>}
