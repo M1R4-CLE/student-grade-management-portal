@@ -110,7 +110,7 @@ export default function ClassManagementPage() {
     <div style={{ padding: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h1 style={{ marginBottom: 12 }}>Class Management</h1>
-        <LogoutButton />
+        
       </div>
 
       <form onSubmit={createCourse} style={{ marginBottom: 16 }}>

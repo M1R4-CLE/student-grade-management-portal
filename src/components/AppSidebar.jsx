@@ -10,7 +10,6 @@ import {
   MessageSquare,
   BarChart3,
   User,
-  Settings,
   LayoutDashboard,
   ClipboardList,
   PencilRuler,
@@ -61,7 +60,7 @@ export default function AppSidebar({ role = "student" }) {
           { label: "Grade Entry", href: "/teacher/Grade-Entry", icon: PencilRuler },
           { label: "Messages", href: "/teacher/messages", icon: MessageSquare },
           { label: "Profile", href: "/teacher/Profile", icon: User },
-          { label: "Settings", href: "/teacher/Settings", icon: Settings },
+          
         ]
       : [
           { label: "Home Page", href: "/student/Dashboard", icon: Home },
@@ -69,7 +68,7 @@ export default function AppSidebar({ role = "student" }) {
           { label: "Messages", href: "/student/messages", icon: MessageSquare },
           { label: "My Grades", href: "/student/Grades", icon: BarChart3 },
           { label: "Profile", href: "/student/Profile", icon: User },
-          { label: "Settings", href: "/student/Settings", icon: Settings },
+          
         ];
 
   return (

@@ -1,8 +1,22 @@
-:root{
-  --blue-main:#2f6fb3;
-  --green-main:#57b447;
-}
+:root {
+  /* Font */
+  --font-main: var(--font-poppins);
 
+  /* Brand Colors */
+  --blue-main: #2f6fb3;
+  --green-main: #57b447;
+  --blue-dark: #1f4e8c;
+  --blue-light: #4a90e2;
+  --gray-brand: #6e6e6e;
+
+  /* Optional UI neutrals */
+  --text: #111827;
+  --muted: #6b7280;
+  --card: rgba(255, 255, 255, 0.75);
+  --border: rgba(0, 0, 0, 0.06);
+
+  
+}
 .loginWrap{
   min-height:100vh;
   display:grid;
@@ -89,7 +103,10 @@
   font-size: 13px;
 }
 
-/* ===== DASHBOARD LOOK (like your screenshot) ===== */
+
+html, body {
+  font-family: var(--font-main), system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
 
 body{
   background:

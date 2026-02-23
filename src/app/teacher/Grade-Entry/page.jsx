@@ -38,14 +38,13 @@ export default function GradeEntryPage() {
       setLoadingCourses(true);
       setMessage("");
 
-      const { data: userRes, error: userErr } = await supabase.auth.getUser();
+      const { data: { user }, error: userErr } = await supabase.auth.getUser();
       if (userErr) {
         setMessage(userErr.message);
         setLoadingCourses(false);
         return;
       }
 
-      const user = userRes.user;
       if (!user) {
         router.replace("/login");
         return;
@@ -154,6 +153,7 @@ export default function GradeEntryPage() {
     );
   };
 
+  
   const saveGrades = async () => {
     if (!courseId) {
       setMessage("Please select a course first.");
@@ -168,6 +168,7 @@ export default function GradeEntryPage() {
     setSaving(true);
     setMessage("Saving...");
 
+ 
     const payload = rows.map((r) => ({
       course_id: Number(courseId),
       student_id: r.student_id,
