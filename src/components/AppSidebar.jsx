@@ -78,7 +78,7 @@ export default function AppSidebar({ role = "student" }) {
         width: 260,
         minHeight: "calc(100vh - 40px)",
         background: "var(--sidebar-bg)",
-        border: "1px solid var(--border-light)",
+        borderRight: "1px solid #C9C9C9",
         borderRadius: "var(--radius-lg)",
         boxShadow: "var(--shadow-soft)",
         padding: 18,

@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { useRouter } from "next/navigation";
-import LogoutButton from "@/components/LogoutButton";
 
 export default function StudentCoursesPage() {
   const router = useRouter();
@@ -64,7 +63,7 @@ export default function StudentCoursesPage() {
     <div style={{ padding: 24 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <h1 style={{ marginBottom: 12 }}>My Courses</h1>
-        <LogoutButton />
+
       </div>
 
       {err && <p style={{ color: "red" }}>{err}</p>}
