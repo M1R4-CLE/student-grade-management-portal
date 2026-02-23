@@ -22,14 +22,45 @@ export default function TeacherDashboardPage() {
 
       <div
         style={{
-          marginTop: 14,
-          padding: 14,
-          borderRadius: 18,
-          border: "1px solid rgba(0,0,0,.06)",
-          background: "rgba(255,255,255,.75)",
+          display: "grid",
+          gridTemplateColumns: "1fr 1.3fr",
+          gap: 14,
+          marginBottom: 12,
         }}
       >
-        Use the sidebar to manage classes and enter grades.
+        <div
+          style={{
+            border: "none",
+            borderRadius: 12,
+            background: "#ffffff",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+            minHeight: 44,
+            display: "flex",
+            alignItems: "center",
+            padding: "0 12px",
+            fontSize: 30,
+            color: "#3c3c3c",
+          }}
+        >
+          Dashboard
+        </div>
+
+        <input
+          placeholder="Search Class"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{
+            border: "none",
+            borderRadius: 16,
+            background: "#ffffff",
+            boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+            minHeight: 44,
+            padding: "0 14px",
+            fontSize: 36,
+            color: "#3c3c3c",
+            outline: "none",
+          }}
+        />
       </div>
 
       {/* Navigation Button */}

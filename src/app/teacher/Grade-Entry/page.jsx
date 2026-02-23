@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
@@ -9,8 +9,17 @@ function computeFinal(prelim, midterm, finalExam) {
   return Math.round(result * 100) / 100;
 }
 
+function getRemark(score) {
+  if (score >= 90) return { letter: "A", color: "#4CAF7A" };
+  if (score >= 85) return { letter: "B", color: "#66BB6A" };
+  if (score >= 80) return { letter: "C", color: "#F0B44C" };
+  if (score >= 75) return { letter: "D", color: "#FF8A65" };
+  return { letter: "F", color: "#E57373" };
+}
+
 export default function GradeEntryPage() {
   const router = useRouter();
+
   const [courses, setCourses] = useState([]);
   const [courseId, setCourseId] = useState("");
   const [rows, setRows] = useState([]);
@@ -18,6 +27,11 @@ export default function GradeEntryPage() {
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [loadingStudents, setLoadingStudents] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  const [search, setSearch] = useState("");
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
 
   useEffect(() => {
     async function loadCourses() {
@@ -72,6 +86,7 @@ export default function GradeEntryPage() {
     async function loadStudents() {
       setLoadingStudents(true);
       setMessage("");
+      setSelectedStudent(null);
 
       const { data: enrollData, error } = await supabase
         .from("enrollments")
@@ -122,10 +137,14 @@ export default function GradeEntryPage() {
     loadStudents();
   }, [courseId]);
 
-  const visibleRows = courseId ? rows : [];
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, courseId]);
 
 
   const handleChange = (id, field, value) => {
+    const safeValue = Number.isNaN(value) ? 0 : Math.max(0, Math.min(100, value));
+
     setRows((prev) =>
       prev.map((r) => {
         if (r.student_id !== id) return r;
@@ -211,30 +230,44 @@ export default function GradeEntryPage() {
     <div style={{ padding: 24 }}>
       <h1>Grade Entry</h1>
 
-      <div style={{ marginBottom: 12 }}>
-        <select
-          value={courseId}
-          onChange={(e) => setCourseId(e.target.value)}
-          disabled={loadingCourses}
-        >
-          <option value="">
-            {loadingCourses ? "Loading courses..." : "Select Course"}
-          </option>
-
-          {courses.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.code} - {c.title}
-            </option>
-          ))}
-        </select>
-
-        <button
-          onClick={saveGrades}
-          disabled={saving || !courseId || visibleRows.length === 0}
-          style={{ marginLeft: 10 }}
-        >
-          {saving ? "Saving..." : "Save Grades"}
-        </button>
+      <div
+        style={{
+          marginTop: 14,
+          background: "#fff",
+          borderRadius: 14,
+          boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
+          minHeight: 200,
+          padding: 16,
+        }}
+      >
+        {selectedStudent ? (
+          <>
+            <h3 style={{ margin: "0 0 8px", color: "#2d3650" }}>
+              Student Performance Profile
+            </h3>
+            <div style={{ color: "#4d5875", marginBottom: 10 }}>
+              {selectedStudent.full_name} (ID: {selectedStudent.student_id})
+            </div>
+            <div
+              style={{
+                border: "1px dashed #cfd7e6",
+                borderRadius: 12,
+                minHeight: 120,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#7a849d",
+                background: "#fafcff",
+              }}
+            >
+              Blank space for Attendance, Quizzes, Exams, Activities, and other performance data.
+            </div>
+          </>
+        ) : (
+          <div style={{ color: "#6f7992" }}>
+            Click a student row to open a blank performance profile space.
+          </div>
+        )}
       </div>
 
       {message && <p>{message}</p>}
