@@ -82,12 +82,6 @@ export default function StudentProfilePage() {
   // For right-side cards (computed from grades if available)
   const [finalGrades, setFinalGrades] = useState([]);
 
-  // Change password mini box
-  const [showPass, setShowPass] = useState(false);
-  const [newPass, setNewPass] = useState("");
-  const [confirmPass, setConfirmPass] = useState("");
-  const [passBusy, setPassBusy] = useState(false);
-
   const setMsg = (txt) => setMessage(txt || "");
 
   const handleChange = (key, value) => {
@@ -106,7 +100,6 @@ export default function StudentProfilePage() {
       .createSignedUrl(path, 60 * 30); // 30 mins
 
     if (error) {
-      // If policies/bucket issues, show a helpful message but don't break page
       setMsg(error.message);
       setAvatarUrl("");
       return;
@@ -132,7 +125,6 @@ export default function StudentProfilePage() {
 
       const meta = user.user_metadata || {};
 
-      // IMPORTANT: select the new columns you added in profiles
       const { data: profile, error: pErr } = await supabase
         .from("profiles")
         .select(
@@ -168,7 +160,7 @@ export default function StudentProfilePage() {
         return;
       }
 
-      // save avatar state
+      // avatar
       setAvatarPath(profile?.avatar_path || "");
       if (profile?.avatar_path) {
         await refreshAvatarSignedUrl(profile.avatar_path);
@@ -176,7 +168,6 @@ export default function StudentProfilePage() {
         setAvatarUrl("");
       }
 
-      // Fill form from DB first, then fallback to auth metadata
       setForm({
         full_name: profile?.full_name || meta.full_name || "Student User",
         email: profile?.email || user.email || "",
@@ -198,7 +189,6 @@ export default function StudentProfilePage() {
         birthday: meta.birthday || "",
       });
 
-      // Load grades (optional: used for right-side cards)
       const { data: gradesData } = await supabase
         .from("grades")
         .select("final_grade")
@@ -249,7 +239,6 @@ export default function StudentProfilePage() {
     setSaving(true);
     setMsg("");
 
-    // Save everything that exists on public.profiles
     const { error: dbErr } = await supabase
       .from("profiles")
       .update({
@@ -264,7 +253,7 @@ export default function StudentProfilePage() {
 
         mailing_address: form.mailing_address || "",
         phone_number: form.phone_number || "",
-        fax_number: form.business_fax || "", // maps UI -> DB column
+        fax_number: form.business_fax || "",
       })
       .eq("id", userId);
 
@@ -274,7 +263,6 @@ export default function StudentProfilePage() {
       return;
     }
 
-    // Keep your “Additional Information” in auth metadata (unless you add DB columns later)
     const { error: metaErr } = await supabase.auth.updateUser({
       data: {
         gender: form.gender || "",
@@ -294,33 +282,6 @@ export default function StudentProfilePage() {
     setMsg("Profile saved successfully.");
     setEditing(false);
     setSaving(false);
-  };
-
-  const changePassword = async () => {
-    setMsg("");
-
-    if (!newPass || !confirmPass) {
-      setMsg("Please fill in both password fields.");
-      return;
-    }
-    if (newPass !== confirmPass) {
-      setMsg("Passwords do not match.");
-      return;
-    }
-
-    setPassBusy(true);
-    const { error } = await supabase.auth.updateUser({ password: newPass });
-    if (error) {
-      setMsg(error.message);
-      setPassBusy(false);
-      return;
-    }
-
-    setMsg("Password changed successfully.");
-    setNewPass("");
-    setConfirmPass("");
-    setShowPass(false);
-    setPassBusy(false);
   };
 
   const pickAvatar = () => {
@@ -347,24 +308,18 @@ export default function StudentProfilePage() {
     const ext = getExt(file.name);
     const path = `${userId}/avatar-${Date.now()}.${ext}`;
 
-    // Upload to Storage bucket "avatars"
-    const { error: upErr } = await supabase.storage
-      .from("avatars")
-      .upload(path, file, {
-        cacheControl: "3600",
-        upsert: false,
-        contentType: file.type,
-      });
+    const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, {
+      cacheControl: "3600",
+      upsert: true,
+      contentType: file.type,
+    });
 
     if (upErr) {
-      setMsg(
-        `Upload failed: ${upErr.message}\n(Confirm you created the "avatars" bucket and added the storage policies.)`
-      );
+      setMsg(`Upload failed: ${upErr.message}`);
       setAvatarBusy(false);
       return;
     }
 
-    // Save path to profiles.avatar_path
     const { error: dbErr } = await supabase
       .from("profiles")
       .update({ avatar_path: path })
@@ -376,7 +331,6 @@ export default function StudentProfilePage() {
       return;
     }
 
-    // Refresh avatar immediately
     setAvatarPath(path);
     await refreshAvatarSignedUrl(path);
 
@@ -390,11 +344,11 @@ export default function StudentProfilePage() {
     <div style={wrap}>
       <div style={grid}>
         {/* LEFT SIDE */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {/* Top profile header card */}
           <div style={card}>
-            <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-              {/* big avatar */}
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              {/* avatar */}
               <div style={avatarCircle}>
                 {avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -404,25 +358,19 @@ export default function StudentProfilePage() {
                     style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
                   />
                 ) : (
-                  <span style={{ fontSize: 40, opacity: 0.9 }}>👤</span>
+                  <span style={{ fontSize: 34, opacity: 0.9 }}>👤</span>
                 )}
               </div>
 
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 900, fontSize: 16, color: "#111827" }}>
-                  {form.full_name || "Student User"}
-                </div>
-                <div style={{ color: "#6b7280", fontWeight: 700, marginTop: 2 }}>
-                  Student ID: {form.student_no || "-"}
-                </div>
-                <div style={{ color: "#6b7280", marginTop: 2 }}>
-                  BS Information - 2nd Year
-                </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={titleText}>{form.full_name || "Student User"}</div>
+                <div style={subText}>Student ID: {form.student_no || "-"}</div>
+                <div style={subText}>BS Information - 2nd Year</div>
 
                 {/* Avatar controls */}
-                <div style={{ marginTop: 10, display: "flex", gap: 10, alignItems: "center" }}>
+                <div style={{ marginTop: 8, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                   <button onClick={pickAvatar} disabled={avatarBusy} style={btnWhite}>
-                    {avatarBusy ? "Uploading..." : "🖼️ Change Avatar"}
+                    {avatarBusy ? "Uploading..." : " Change Avatar"}
                   </button>
 
                   <input
@@ -434,9 +382,7 @@ export default function StudentProfilePage() {
                   />
 
                   {avatarPath ? (
-                    <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>
-                      Saved
-                    </span>
+                    <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Saved</span>
                   ) : null}
                 </div>
               </div>
@@ -449,47 +395,12 @@ export default function StudentProfilePage() {
                   }}
                   style={btnBlue}
                 >
-                  ✏️ {editing ? "Cancel Edit" : "Edit Profile"}
-                </button>
-
-                <button onClick={() => setShowPass((p) => !p)} style={btnWhite}>
-                  🔒 Change Password
+                   {editing ? "Cancel Edit" : "Edit Profile"}
                 </button>
               </div>
             </div>
-
-            {/* password mini box */}
-            {showPass && (
-              <div
-                style={{
-                  marginTop: 12,
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr auto",
-                  gap: 10,
-                }}
-              >
-                <input
-                  type="password"
-                  placeholder="New password"
-                  value={newPass}
-                  onChange={(e) => setNewPass(e.target.value)}
-                  style={input}
-                />
-                <input
-                  type="password"
-                  placeholder="Confirm password"
-                  value={confirmPass}
-                  onChange={(e) => setConfirmPass(e.target.value)}
-                  style={input}
-                />
-                <button onClick={changePassword} disabled={passBusy} style={btnBlue}>
-                  {passBusy ? "Saving..." : "Update"}
-                </button>
-              </div>
-            )}
           </div>
 
-          {/* Sections */}
           <Section title="Basic Information" editing={editing}>
             <Field label="Full Name" value={form.full_name} editing={editing} onChange={(v) => handleChange("full_name", v)} />
             <Field label="Company" value={form.company} editing={editing} onChange={(v) => handleChange("company", v)} optional />
@@ -516,21 +427,16 @@ export default function StudentProfilePage() {
           </Section>
 
           {/* footer actions */}
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              padding: "0 2px",
-            }}
-          >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 2px", gap: 12 }}>
             <div
               style={{
-                color: message.toLowerCase().includes("success") || message.toLowerCase().includes("updated")
-                  ? "#2e7d32"
-                  : "#b23a3a",
+                color:
+                  message.toLowerCase().includes("success") || message.toLowerCase().includes("updated")
+                    ? "#2e7d32"
+                    : "#b23a3a",
                 fontWeight: 700,
                 whiteSpace: "pre-wrap",
+                minHeight: 18,
               }}
             >
               {message}
@@ -545,7 +451,7 @@ export default function StudentProfilePage() {
         </div>
 
         {/* RIGHT SIDE */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {/* Academic Performance */}
           <div style={card}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -553,7 +459,7 @@ export default function StudentProfilePage() {
               <div style={{ opacity: 0.6 }}>•••</div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 12, marginTop: 12, alignItems: "center" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 10, marginTop: 10, alignItems: "center" }}>
               <div style={donutWrap}>
                 <div style={donutInner}>
                   <div style={{ fontWeight: 900 }}>{stats.gpa.toFixed(2)}</div>
@@ -562,7 +468,7 @@ export default function StudentProfilePage() {
 
               <div>
                 <div style={{ fontWeight: 900, color: "#111827" }}>Overall GPA</div>
-                <div style={{ fontSize: 22, fontWeight: 900, marginTop: 4 }}>{stats.gpa.toFixed(2)}</div>
+                <div style={{ fontSize: 20, fontWeight: 900, marginTop: 3 }}>{stats.gpa.toFixed(2)}</div>
 
                 <div style={{ marginTop: 8, height: 6, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
                   <div
@@ -601,7 +507,7 @@ export default function StudentProfilePage() {
               <div style={{ opacity: 0.6 }}>•••</div>
             </div>
 
-            <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
+            <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
               {[
                 ["A", stats.dist.A, "#22c55e"],
                 ["A-", stats.dist["A-"], "#34d399"],
@@ -638,11 +544,10 @@ function Section({ title, children, editing }) {
     <div style={card}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #eef0f3", paddingBottom: 8 }}>
         <div style={{ fontWeight: 900 }}>{title}</div>
-        <div style={{ opacity: 0.7 }}></div>
         {editing && <div style={{ marginLeft: "auto", fontSize: 12, color: "#6b7280" }}>Editing</div>}
       </div>
 
-      <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+      <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
         {children}
       </div>
     </div>
@@ -671,42 +576,57 @@ function Field({ label, value, editing, onChange, optional = false, type = "text
   );
 }
 
-/* ---------- styles (inline like your app) ---------- */
+/* ---------- styles (tighter / less lengthy) ---------- */
 
-const wrap = {
-  width: "100%",
-};
+const wrap = { width: "100%" };
 
 const grid = {
   display: "grid",
   gridTemplateColumns: "1fr 320px",
-  gap: 14,
+  gap: 12,
   alignItems: "start",
 };
 
 const card = {
   background: "#fff",
   border: "1px solid #e5e7eb",
-  borderRadius: 10,
-  padding: 14,
+  borderRadius: 12,
+  padding: 12,
   boxShadow: "0 10px 30px rgba(0,0,0,.06)",
 };
 
+const titleText = {
+  fontWeight: 900,
+  fontSize: 16,
+  color: "#111827",
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+};
+
+const subText = {
+  color: "#6b7280",
+  fontWeight: 700,
+  marginTop: 2,
+  fontSize: 12,
+};
+
 const avatarCircle = {
-  width: 76,
-  height: 76,
+  width: 64,
+  height: 64,
   borderRadius: "50%",
   border: "3px solid #111827",
   display: "grid",
   placeItems: "center",
   background: "#fff",
   overflow: "hidden",
+  flexShrink: 0,
 };
 
 const btnBlue = {
-  height: 36,
-  padding: "0 14px",
-  borderRadius: 8,
+  height: 34,
+  padding: "0 12px",
+  borderRadius: 10,
   border: "none",
   background: "#2f6fb3",
   color: "white",
@@ -716,9 +636,9 @@ const btnBlue = {
 };
 
 const btnWhite = {
-  height: 36,
-  padding: "0 14px",
-  borderRadius: 8,
+  height: 34,
+  padding: "0 12px",
+  borderRadius: 10,
   border: "1px solid #d1d5db",
   background: "white",
   color: "#111827",
@@ -729,26 +649,27 @@ const btnWhite = {
 
 const fieldBox = {
   border: "1px solid #eef0f3",
-  borderRadius: 10,
-  padding: 12,
+  borderRadius: 12,
+  padding: 10,
   background: "#fff",
-  minHeight: 62,
+  minHeight: 54,
 };
 
 const input = {
   marginTop: 6,
   width: "100%",
-  height: 36,
+  height: 32,
   borderRadius: 10,
   border: "1px solid #d1d5db",
   padding: "0 10px",
   outline: "none",
   fontWeight: 800,
+  fontSize: 13,
 };
 
 const donutWrap = {
-  width: 96,
-  height: 96,
+  width: 90,
+  height: 90,
   borderRadius: "50%",
   background: "conic-gradient(#22c55e 0deg 140deg, #3b82f6 140deg 260deg, #e5e7eb 260deg 360deg)",
   display: "grid",
@@ -756,8 +677,8 @@ const donutWrap = {
 };
 
 const donutInner = {
-  width: 66,
-  height: 66,
+  width: 62,
+  height: 62,
   borderRadius: "50%",
   background: "white",
   display: "grid",
