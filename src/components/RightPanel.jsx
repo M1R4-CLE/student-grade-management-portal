@@ -6,6 +6,7 @@ import LogoutButton from "./LogoutButton";
 import NotificationsModal from "./NotificationsModal";
 import AgendaCalendar from "./AgendaCalendar";
 
+
 function Card({ title, children }) {
   return (
     <div
