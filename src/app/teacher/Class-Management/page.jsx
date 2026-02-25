@@ -47,6 +47,15 @@ export default function TeacherClassManagementPage() {
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [roster, setRoster]                 = useState([]);
   const [rosterLoading, setRosterLoading]   = useState(false);
+  const [activeRosterStudent, setActiveRosterStudent] = useState(null);
+  const [studentQuery, setStudentQuery]     = useState("");
+  const [studentSearchBusy, setStudentSearchBusy] = useState(false);
+  const [suggestBusy, setSuggestBusy]       = useState(false);
+  const [suggestions, setSuggestions]       = useState([]);
+  const [suggestOpen, setSuggestOpen]       = useState(false);
+  const [foundStudent, setFoundStudent]     = useState(null);
+  const [enrollBusy, setEnrollBusy]         = useState(false);
+  const [enrollMsg, setEnrollMsg]           = useState("");
 
   // ── Auth ────────────────────────────────────────────────────
   useEffect(() => {
@@ -78,6 +87,12 @@ export default function TeacherClassManagementPage() {
   const toCoverUrl = useCallback(async (path) => {
     if (!path) return "";
     const { data } = await supabase.storage.from("course-covers").createSignedUrl(path, 1800);
+    return data?.signedUrl || "";
+  }, []);
+
+  const toAvatarUrl = useCallback(async (path) => {
+    if (!path) return "";
+    const { data } = await supabase.storage.from("avatars").createSignedUrl(path, 1800);
     return data?.signedUrl || "";
   }, []);
 
@@ -311,6 +326,7 @@ export default function TeacherClassManagementPage() {
     if (selectedCourse?.id === course.id) {
       setSelectedCourse(null);
       setRoster([]);
+      setActiveRosterStudent(null);
       setEditMode(false);
       return;
     }
@@ -318,31 +334,226 @@ export default function TeacherClassManagementPage() {
     setEditMode(false);
     setEditErr("");
     setCoverFile(null);
+    setStudentQuery("");
+    setFoundStudent(null);
+    setEnrollMsg("");
     setRosterLoading(true);
     setRoster([]);
+    setActiveRosterStudent(null);
 
-    const { data, error } = await supabase
+    let enrollRows = [];
+    let enrollErr = null;
+
+    const tryWithEnrolledAt = await supabase
       .from("enrollments")
-      .select(`
-        id, enrolled_at,
-        profiles!enrollments_student_id_fkey(id, full_name, student_no, email)
-      `)
+      .select("id, enrolled_at, student_id")
       .eq("course_id", course.id)
       .order("enrolled_at", { ascending: true });
 
-    if (!error) {
-      setRoster(
-        (data || []).map(e => ({
-          enrollId:   e.id,
-          studentId:  e.profiles?.id,
-          name:       e.profiles?.full_name  || "-",
-          studentNo:  e.profiles?.student_no || "-",
-          email:      e.profiles?.email      || "-",
-          enrolledAt: new Date(e.enrolled_at).toLocaleDateString(),
-        }))
-      );
+    if (!tryWithEnrolledAt.error) {
+      enrollRows = tryWithEnrolledAt.data || [];
+    } else {
+      // Fallback for schemas where enrolled_at column does not exist.
+      const fallback = await supabase
+        .from("enrollments")
+        .select("id, student_id")
+        .eq("course_id", course.id)
+        .order("id", { ascending: true });
+      enrollRows = fallback.data || [];
+      enrollErr = fallback.error;
     }
+
+    if (enrollErr) {
+      setEnrollMsg(`Failed to load roster: ${enrollErr.message}`);
+      setRosterLoading(false);
+      return;
+    }
+
+    const studentIds = [...new Set((enrollRows || []).map(r => r.student_id).filter(Boolean))];
+    let profileMap = new Map();
+
+    if (studentIds.length > 0) {
+      const { data: profRows, error: profErr } = await supabase
+        .from("profiles")
+        .select("id, full_name, student_no, email, program, year_level, avatar_path")
+        .in("id", studentIds);
+
+      if (profErr) {
+        setEnrollMsg(`Failed to load student details: ${profErr.message}`);
+      } else {
+        profileMap = new Map((profRows || []).map(p => [p.id, p]));
+      }
+    }
+
+    const merged = await Promise.all(
+      (enrollRows || []).map(async e => {
+        const p = profileMap.get(e.student_id);
+        return {
+          enrollId: e.id,
+          studentId: e.student_id,
+          name: p?.full_name || "-",
+          studentNo: p?.student_no || "-",
+          email: p?.email || "-",
+          program: p?.program || "BS Information Technology",
+          year_level: p?.year_level || "",
+          avatar_url: await toAvatarUrl(p?.avatar_path || ""),
+          enrolledAt: e.enrolled_at ? new Date(e.enrolled_at).toLocaleDateString() : "-",
+        };
+      })
+    );
+    setRoster(merged);
     setRosterLoading(false);
+  };
+
+  const normalizeStudent = async (row, fallbackQuery = "") => ({
+    id: row.id,
+    full_name: row.full_name || "No name",
+    email: row.email || fallbackQuery || "-",
+    student_no: row.student_no || "-",
+    program: row.program || "BS Information Technology",
+    year_level: row.year_level || "",
+    avatar_path: row.avatar_path || "",
+    avatar_url: await toAvatarUrl(row.avatar_path || ""),
+  });
+
+  const fetchStudentSuggestions = async (rawQuery) => {
+    const q = String(rawQuery || "").trim();
+    if (!q) {
+      setSuggestions([]);
+      setSuggestOpen(false);
+      return;
+    }
+
+    setSuggestBusy(true);
+    setSuggestOpen(true);
+
+    const withProg = await supabase
+      .from("profiles")
+      .select("id, role, full_name, email, student_no, program, year_level, avatar_path")
+      .eq("role", "student")
+      .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,student_no.ilike.%${q}%`)
+      .limit(6);
+
+    if (!withProg.error) {
+      const mapped = await Promise.all((withProg.data || []).map(r => normalizeStudent(r, q)));
+      setSuggestions(mapped);
+      setSuggestBusy(false);
+      return;
+    }
+
+    const basic = await supabase
+      .from("profiles")
+      .select("id, role, full_name, email, student_no, avatar_path")
+      .eq("role", "student")
+      .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,student_no.ilike.%${q}%`)
+      .limit(6);
+
+    const mapped = await Promise.all((basic.data || []).map(r => normalizeStudent(r, q)));
+    setSuggestions(mapped);
+    setSuggestBusy(false);
+  };
+
+  const pickSuggestion = (student) => {
+    setFoundStudent(student);
+    setStudentQuery(student.email || student.student_no || student.full_name || "");
+    setSuggestOpen(false);
+    setEnrollMsg("");
+  };
+
+  const searchStudentByQuery = async () => {
+    const q = studentQuery.trim();
+    if (!q) {
+      setEnrollMsg("Enter student name, school ID, or school email.");
+      setFoundStudent(null);
+      return;
+    }
+
+    setStudentSearchBusy(true);
+    setEnrollMsg("");
+    setFoundStudent(null);
+    setSuggestOpen(false);
+
+    const exact = suggestions.find(
+      s =>
+        String(s.email || "").toLowerCase() === q.toLowerCase() ||
+        String(s.student_no || "").toLowerCase() === q.toLowerCase() ||
+        String(s.full_name || "").toLowerCase() === q.toLowerCase()
+    );
+    if (exact) {
+      setFoundStudent(exact);
+      setStudentSearchBusy(false);
+      return;
+    }
+
+    let row = null;
+    const withProg = await supabase
+      .from("profiles")
+      .select("id, role, full_name, email, student_no, program, year_level, avatar_path")
+      .eq("role", "student")
+      .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,student_no.ilike.%${q}%`)
+      .limit(1);
+
+    if (withProg.error) {
+      setEnrollMsg(`Search failed: ${withProg.error.message}`);
+      setStudentSearchBusy(false);
+      return;
+    }
+
+    if ((withProg.data || []).length > 0) {
+      row = withProg.data[0];
+    } else {
+      const basic = await supabase
+        .from("profiles")
+        .select("id, role, full_name, email, student_no, avatar_path")
+        .eq("role", "student")
+        .or(`full_name.ilike.%${q}%,email.ilike.%${q}%,student_no.ilike.%${q}%`)
+        .limit(1);
+
+      if (basic.error) {
+        setEnrollMsg(`Search failed: ${basic.error.message}`);
+        setStudentSearchBusy(false);
+        return;
+      }
+
+      row = (basic.data || [])[0] || null;
+    }
+
+    if (!row) {
+      setEnrollMsg("Student account not found.");
+      setStudentSearchBusy(false);
+      return;
+    }
+
+    setFoundStudent(await normalizeStudent(row, q));
+    setStudentSearchBusy(false);
+  };
+
+  const addStudentToRoster = async () => {
+    if (!selectedCourse?.id || !foundStudent?.id) return;
+    setEnrollBusy(true);
+    setEnrollMsg("");
+
+    const { error } = await supabase
+      .from("enrollments")
+      .insert({ course_id: selectedCourse.id, student_id: foundStudent.id });
+
+    if (error) {
+      if (String(error.message || "").toLowerCase().includes("duplicate")) {
+        setEnrollMsg("Student is already enrolled in this class.");
+      } else {
+        setEnrollMsg(error.message);
+      }
+      setEnrollBusy(false);
+      return;
+    }
+
+    setEnrollMsg("Student added to roster.");
+    await loadRoster(selectedCourse);
+    setStudentQuery("");
+    setSuggestions([]);
+    setSuggestOpen(false);
+    setFoundStudent(null);
+    setEnrollBusy(false);
   };
 
   // ── Pagination ──────────────────────────────────────────────
@@ -601,10 +812,117 @@ export default function TeacherClassManagementPage() {
           <div style={{ color: "#6b7280", fontSize: 13 }}>
             Select a course above to view the roster list.
           </div>
-        ) : rosterLoading ? (
-          <div style={{ color: "#6b7280", fontSize: 13 }}>Loading roster...</div>
         ) : (
           <>
+            <div style={enrollBox}>
+              <div style={{ fontWeight: 800, color: "#111827", marginBottom: 8 }}>Enroll Student</div>
+              <div style={enrollRow}>
+                <div style={searchWrap}>
+                  <input
+                    value={studentQuery}
+                    onChange={async e => {
+                      const v = e.target.value;
+                      setStudentQuery(v);
+                      setEnrollMsg("");
+                      setFoundStudent(null);
+                      await fetchStudentSuggestions(v);
+                    }}
+                    onFocus={async () => {
+                      if (studentQuery.trim()) {
+                        await fetchStudentSuggestions(studentQuery);
+                      }
+                    }}
+                    placeholder="Search by name, school ID, or school email"
+                    style={{ ...inputStyle, minWidth: 220, width: "100%" }}
+                    onKeyDown={e => e.key === "Enter" && searchStudentByQuery()}
+                  />
+                  {suggestOpen && (
+                    <div style={suggestionBox}>
+                      {suggestBusy ? (
+                        <div style={suggestionEmpty}>Searching...</div>
+                      ) : suggestions.length === 0 ? (
+                        <div style={suggestionEmpty}>No matching students</div>
+                      ) : (
+                        suggestions.map(s => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => pickSuggestion(s)}
+                            style={suggestionItem}
+                          >
+                            <div style={{ fontWeight: 800, color: "#111827", textAlign: "left" }}>{s.full_name}</div>
+                            <div style={{ fontSize: 12, color: "#6b7280", textAlign: "left" }}>
+                              {s.student_no} - {s.email}
+                            </div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div style={enrollActions}>
+                  <button
+                    onClick={searchStudentByQuery}
+                    disabled={studentSearchBusy || enrollBusy}
+                    style={miniBtn}
+                  >
+                    {studentSearchBusy ? "Searching..." : "Search"}
+                  </button>
+                  <button
+                    onClick={addStudentToRoster}
+                    disabled={!foundStudent || enrollBusy || studentSearchBusy}
+                    style={miniPrimaryBtn}
+                  >
+                    {enrollBusy ? "Adding..." : "Add to Roster"}
+                  </button>
+                </div>
+              </div>
+
+              {foundStudent && (
+                <div style={studentPreviewCard}>
+                  <div>
+                    <div style={{ fontWeight: 800, color: "#111827" }}>{foundStudent.full_name}</div>
+                    <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>{foundStudent.email}</div>
+                    <div style={{ fontSize: 13, color: "#374151", marginTop: 2 }}>
+                      Student ID: {foundStudent.student_no}
+                    </div>
+                    <div style={{ fontSize: 13, color: "#374151", marginTop: 2 }}>
+                      {foundStudent.program}
+                      {foundStudent.year_level ? ` - ${foundStudent.year_level}` : ""}
+                    </div>
+                  </div>
+                  <div style={studentAvatarWrap}>
+                    {foundStudent.avatar_url ? (
+                      <img
+                        src={foundStudent.avatar_url}
+                        alt={foundStudent.full_name}
+                        style={studentAvatarImg}
+                      />
+                    ) : (
+                      <span style={{ fontSize: 26 }}>👤</span>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {enrollMsg && (
+                <div
+                  style={{
+                    marginTop: 10,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: enrollMsg.toLowerCase().includes("added") ? "#166534" : "#b91c1c",
+                  }}
+                >
+                  {enrollMsg}
+                </div>
+              )}
+            </div>
+
+            {rosterLoading ? (
+              <div style={{ color: "#6b7280", fontSize: 13 }}>Loading roster...</div>
+            ) : (
+              <>
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 12 }}>
               Roster -{" "}
               <span style={{ color: "#2f6fb3" }}>{selectedCourse.title}</span>{" "}
@@ -612,6 +930,29 @@ export default function TeacherClassManagementPage() {
                 ({selectedCourse.code})
               </span>
             </div>
+
+            {activeRosterStudent && (
+              <div style={rosterStudentCard}>
+                <div>
+                  <div style={{ fontWeight: 800, color: "#111827", fontSize: 20 }}>{activeRosterStudent.name}</div>
+                  <div style={{ fontSize: 13, color: "#6b7280", marginTop: 2 }}>{activeRosterStudent.email}</div>
+                  <div style={{ fontSize: 13, color: "#374151", marginTop: 2 }}>
+                    Student ID: {activeRosterStudent.studentNo}
+                  </div>
+                  <div style={{ fontSize: 13, color: "#374151", marginTop: 2 }}>
+                    {activeRosterStudent.program}
+                    {activeRosterStudent.year_level ? ` - ${activeRosterStudent.year_level}` : ""}
+                  </div>
+                </div>
+                <div style={studentAvatarWrap}>
+                  {activeRosterStudent.avatar_url ? (
+                    <img src={activeRosterStudent.avatar_url} alt={activeRosterStudent.name} style={studentAvatarImg} />
+                  ) : (
+                    <span style={{ fontSize: 26 }}>👤</span>
+                  )}
+                </div>
+              </div>
+            )}
 
             {roster.length === 0 ? (
               <div style={{ color: "#6b7280", fontSize: 13 }}>
@@ -629,7 +970,17 @@ export default function TeacherClassManagementPage() {
                   </thead>
                   <tbody>
                     {roster.map((s, i) => (
-                      <tr key={s.enrollId} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                      <tr
+                        key={s.enrollId}
+                        style={{
+                          borderBottom: "1px solid #f1f5f9",
+                          background: activeRosterStudent?.enrollId === s.enrollId ? "#eff6ff" : "transparent",
+                          cursor: "pointer",
+                        }}
+                        onClick={() => setActiveRosterStudent(s)}
+                        onDoubleClick={() => router.push(`/teacher/Grade-Entry?courseId=${selectedCourse.id}&studentId=${s.studentId}`)}
+                        title="Click to preview student, double-click to open Grade Entry"
+                      >
                         <td style={td}>{i + 1}</td>
                         <td style={{ ...td, fontWeight: 700, color: "#2f6fb3" }}>{s.studentNo}</td>
                         <td style={td}>{s.name}</td>
@@ -640,6 +991,8 @@ export default function TeacherClassManagementPage() {
                   </tbody>
                 </table>
               </div>
+            )}
+              </>
             )}
           </>
         )}
@@ -933,3 +1286,129 @@ const studentItem = {
   paddingBottom: 8,
 };
 
+const enrollBox = {
+  marginBottom: 14,
+  padding: 12,
+  borderRadius: 10,
+  border: "1px solid #e5e7eb",
+  background: "#f8fafc",
+};
+
+const miniBtn = {
+  height: 36,
+  padding: "0 12px",
+  borderRadius: 8,
+  border: "1px solid #d1d5db",
+  background: "white",
+  color: "#374151",
+  fontWeight: 700,
+  cursor: "pointer",
+  fontSize: 12,
+};
+
+const miniPrimaryBtn = {
+  height: 36,
+  padding: "0 12px",
+  borderRadius: 8,
+  border: "none",
+  background: "#2f6fb3",
+  color: "white",
+  fontWeight: 800,
+  cursor: "pointer",
+  fontSize: 12,
+};
+
+const studentPreviewCard = {
+  marginTop: 10,
+  borderRadius: 8,
+  border: "1px solid #dbeafe",
+  background: "#eff6ff",
+  padding: 10,
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  alignItems: "center",
+};
+
+const rosterStudentCard = {
+  marginBottom: 12,
+  borderRadius: 8,
+  border: "1px solid #bfdbfe",
+  background: "#eff6ff",
+  padding: 12,
+  display: "flex",
+  justifyContent: "space-between",
+  gap: 12,
+  alignItems: "center",
+};
+
+const studentAvatarWrap = {
+  width: 64,
+  height: 64,
+  borderRadius: "50%",
+  overflow: "hidden",
+  background: "#e5e7eb",
+  border: "1px solid rgba(0,0,0,0.08)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  flexShrink: 0,
+};
+
+const studentAvatarImg = {
+  width: "100%",
+  height: "100%",
+  objectFit: "cover",
+};
+
+const enrollRow = {
+  display: "flex",
+  gap: 5,
+  alignItems: "center",
+  flexWrap: "wrap",
+};
+
+const searchWrap = {
+  position: "relative",
+  minWidth: 220,
+  maxWidth: 520,
+  flex: "1 1 420px",
+};
+
+const enrollActions = {
+  marginLeft: "auto",
+  display: "flex",
+  gap: 8,
+  alignItems: "center",
+};
+
+const suggestionBox = {
+  position: "absolute",
+  top: "calc(100% + 4px)",
+  left: 0,
+  right: 0,
+  borderRadius: 10,
+  border: "1px solid #e5e7eb",
+  background: "white",
+  boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+  maxHeight: 220,
+  overflowY: "auto",
+  zIndex: 20,
+  padding: 4,
+};
+
+const suggestionItem = {
+  width: "100%",
+  border: "none",
+  background: "transparent",
+  borderRadius: 8,
+  padding: "8px 10px",
+  cursor: "pointer",
+};
+
+const suggestionEmpty = {
+  padding: "10px 12px",
+  color: "#6b7280",
+  fontSize: 12,
+  fontWeight: 700,
+};

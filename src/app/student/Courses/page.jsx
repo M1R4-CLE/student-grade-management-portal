@@ -6,17 +6,6 @@ import { useRouter } from "next/navigation";
 
 export default function StudentCoursesPage() {
   const router = useRouter();
-  const seedCourses = [
-    { code: "IS 201", title: "Data Structures and Algorithms" },
-    { code: "IS 202", title: "Database Management Systems" },
-    { code: "IS 203", title: "Systems Analysis and Design" },
-    { code: "IS 204", title: "Object-Oriented Programming" },
-    { code: "IS 205", title: "Professional Ethics in IT" },
-    { code: "IS 206", title: "Quantitative Methods / Statistics" },
-    { code: "IS 207", title: "Web Development" },
-    { code: "IS 208", title: "Human-Computer Interaction" },
-    { code: "IS 209", title: "Software Engineering" },
-  ];
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -63,13 +52,12 @@ export default function StudentCoursesPage() {
 
       if (error) {
         setErr(error.message);
-        setCourses(seedCourses);
+        setCourses([]);
       } else {
         const fromDb = (data || []).map((r) => r.courses).filter(Boolean);
-        const source = [...seedCourses, ...fromDb];
 
         const seen = new Set();
-        const unique = source.filter((course) => {
+        const unique = fromDb.filter((course) => {
           const key = `${String(course?.code || "").trim().toLowerCase()}|${String(course?.title || "")
             .trim()
             .toLowerCase()}`;

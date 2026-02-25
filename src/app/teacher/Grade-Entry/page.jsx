@@ -5,11 +5,12 @@
 // ============================================================
 
 import { useEffect, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 
 export default function TeacherGradeEntryPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [loading, setLoading]     = useState(true);
   const [teacherId, setTeacherId] = useState(null);
@@ -23,6 +24,7 @@ export default function TeacherGradeEntryPage() {
   const [saving, setSaving]       = useState({});    // { [studentId]: bool }
   const [saved, setSaved]         = useState({});    // { [studentId]: bool }
   const [err, setErr]             = useState("");
+  const initialCourseId = searchParams.get("courseId") || "";
 
   // ── Auth ────────────────────────────────────────────────────
   useEffect(() => {
@@ -49,10 +51,13 @@ export default function TeacherGradeEntryPage() {
         .eq("teacher_id", user.id)
         .order("id");
       setCourses(coursesData || []);
+      if (initialCourseId && (coursesData || []).some(c => String(c.id) === String(initialCourseId))) {
+        setSelectedId(String(initialCourseId));
+      }
       setLoading(false);
     };
     run();
-  }, [router]);
+  }, [router, initialCourseId]);
 
   // ── Load students + existing grades for selected course ─────
   const loadGrades = useCallback(async (courseId) => {
@@ -62,20 +67,27 @@ export default function TeacherGradeEntryPage() {
     // Get enrolled students
     const { data: enrollData, error: eErr } = await supabase
       .from("enrollments")
-      .select(`
-        student_id,
-        profiles!enrollments_student_id_fkey(full_name, student_no)
-      `)
+      .select("student_id")
       .eq("course_id", courseId)
       .order("student_id");
 
     if (eErr) { setErr(eErr.message); setRows([]); return; }
 
-    const students = (enrollData || []).map(e => ({
-      studentId: e.student_id,
-      name:      e.profiles?.full_name  || "—",
-      studentNo: e.profiles?.student_no || "—",
-    }));
+    const studentIds = [...new Set((enrollData || []).map(e => e.student_id).filter(Boolean))];
+    const { data: profileRows, error: pErr } = studentIds.length
+      ? await supabase.from("profiles").select("id, full_name, student_no").in("id", studentIds)
+      : { data: [], error: null };
+    if (pErr) { setErr(pErr.message); setRows([]); return; }
+    const profileMap = new Map((profileRows || []).map(p => [p.id, p]));
+
+    const students = (enrollData || []).map(e => {
+      const p = profileMap.get(e.student_id);
+      return {
+        studentId: e.student_id,
+        name:      p?.full_name  || "-",
+        studentNo: p?.student_no || "-",
+      };
+    });
 
     // Get existing grades
     const { data: gradesData } = await supabase
