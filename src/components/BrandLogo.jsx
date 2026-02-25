@@ -33,7 +33,7 @@ export default function BrandLogo({ size = 70, compact = false }) {
 
       {!compact && (
         <div style={{ lineHeight: 1.1 }}>
-          <div style={{ fontSize: titleSize, fontWeight: 900 }}>
+          <div style={{ fontSize: titleSize, fontWeight: 900, whiteSpace: "nowrap" }}>
             <span style={{ color: "var(--blue-main)" }}>Student </span>
             <span style={{ color: "var(--green-main)" }}>Grade</span>
           </div>
@@ -42,6 +42,7 @@ export default function BrandLogo({ size = 70, compact = false }) {
               fontSize: subtitleSize,
               letterSpacing: 2,
               color: "var(--gray-text)",
+              whiteSpace: "nowrap",
             }}
           >
             MANAGEMENT PORTAL

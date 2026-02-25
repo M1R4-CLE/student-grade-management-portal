@@ -185,6 +185,9 @@ export default function RightPanel({
       <aside
   style={{
     width: 320,
+    height: "100%",
+    overflowY: "auto",
+    boxSizing: "border-box",
     display: "flex",
     flexDirection: "column",
     gap: 14,

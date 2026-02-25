@@ -1,365 +1,290 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+// ============================================================
+// FILE: src/app/teacher/Dashboard/page.jsx
+// ============================================================
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/app/lib/supabaseClient";
+
+function getCourseImg(title = "") {
+  const t = title.toLowerCase();
+  if (t.includes("data struct") || t.includes("algorithm")) return "/images/dsa.jpg";
+  if (t.includes("database") || t.includes("dbms")) return "/images/dms.jpg";
+  if (t.includes("systems analysis") || t.includes("sad")) return "/images/sad.jpg";
+  if (t.includes("object") || t.includes("oop")) return "/images/oop.jpg";
+  if (t.includes("ethics")) return "/images/ethics.jpg";
+  if (t.includes("quantitative") || t.includes("statistic")) return "/images/qms.jpg";
+  if (t.includes("web")) return "/images/wed.jpg";
+  if (t.includes("human") || t.includes("hci")) return "/images/hci.jpg";
+  if (t.includes("software")) return "/images/soe.jpg";
+  return "/images/dsa.jpg";
+}
+
+const PAGE_SIZE = 6;
 
 export default function TeacherDashboardPage() {
-  const [page, setPage] = useState(1);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [direction, setDirection] = useState(1); // 1 = next, -1 = previous
-  const pageSize = 3;
+  const router = useRouter();
 
-  const classes = [
-    { id: 1, name: "Class Name", subject: "Mathematics", code: "CLS-001" },
-    { id: 2, name: "Class Name", subject: "Science", code: "CLS-002" },
-    { id: 3, name: "Class Name", subject: "English", code: "CLS-003" },
-    { id: 4, name: "Class Name", subject: "History", code: "CLS-004" },
-    { id: 5, name: "Class Name", subject: "Biology", code: "CLS-005" },
-    { id: 6, name: "Class Name", subject: "Chemistry", code: "CLS-006" },
-    { id: 7, name: "Class Name", subject: "Physics", code: "CLS-007" },
-    { id: 8, name: "Class Name", subject: "Filipino", code: "CLS-008" },
-  ];
-
-  const stats = [
-    { label: "Classes", value: classes.length },
-    { label: "Students", value: 120 },
-    { label: "Pending", value: 2 },
-  ];
-
-  const filteredClasses = useMemo(() => {
-    const q = searchTerm.trim().toLowerCase();
-    if (!q) return classes;
-    return classes.filter((item) =>
-      [item.name, item.subject, item.code].some((value) =>
-        String(value).toLowerCase().includes(q)
-      )
-    );
-  }, [classes, searchTerm]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredClasses.length / pageSize));
+  const [loading, setLoading]   = useState(true);
+  const [courses, setCourses]   = useState([]);
+  const [stats, setStats]       = useState({ totalStudents: 0, totalCourses: 0 });
+  const [page, setPage]         = useState(1);
+  const [query, setQuery]       = useState("");
+  const [idx, setIdx]           = useState(0);
+  const [teacherName, setTeacherName] = useState("Teacher");
 
   useEffect(() => {
-    setPage(1);
-  }, [searchTerm]);
+    let cancelled = false;
 
+    const run = async () => {
+      setLoading(true);
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
+      if (!user) { router.replace("/login"); return; }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, full_name")
+        .eq("id", user.id)
+        .single();
+
+      if (!profile || profile.role !== "teacher") {
+        router.replace("/student/Dashboard");
+        return;
+      }
+      if (!cancelled) setTeacherName(profile.full_name || "Teacher");
+
+      // Load courses
+      const { data: coursesData } = await supabase
+        .from("courses")
+        .select("id, code, title")
+        .eq("teacher_id", user.id)
+        .order("id", { ascending: true });
+
+      if (cancelled) return;
+      const mapped = (coursesData || []).map(c => ({
+        ...c,
+        img: getCourseImg(c.title),
+      }));
+      setCourses(mapped);
+
+      // Count total students enrolled in teacher's courses
+      if (mapped.length > 0) {
+        const ids = mapped.map(c => c.id);
+        const { count } = await supabase
+          .from("enrollments")
+          .select("id", { count: "exact", head: true })
+          .in("course_id", ids);
+        if (!cancelled) setStats({ totalStudents: count || 0, totalCourses: mapped.length });
+      } else {
+        if (!cancelled) setStats({ totalStudents: 0, totalCourses: 0 });
+      }
+
+      if (!cancelled) setLoading(false);
+    };
+
+    run();
+    return () => { cancelled = true; };
+  }, [router]);
+
+  // Carousel auto-rotate
   useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+    if (courses.length < 2) return;
+    const t = setInterval(() => setIdx(p => (p + 1) % Math.min(courses.length, 3)), 5000);
+    return () => clearInterval(t);
+  }, [courses.length]);
 
-  const visibleClasses = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return filteredClasses.slice(start, start + pageSize);
-  }, [filteredClasses, page]);
+  const featured = courses.slice(0, 3);
+  const item = featured[idx] || null;
+  const prev = () => setIdx(p => (p - 1 + featured.length) % featured.length);
+  const next = () => setIdx(p => (p + 1) % featured.length);
 
-  const goPrev = () => {
-    if (page === 1) return;
-    setDirection(-1);
-    setPage((prev) => Math.max(1, prev - 1));
-  };
+  // Search filter
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? courses.filter(c => c.title.toLowerCase().includes(q) || c.code.toLowerCase().includes(q))
+    : courses;
 
-  const goNext = () => {
-    if (page === totalPages) return;
-    setDirection(1);
-    setPage((prev) => Math.min(totalPages, prev + 1));
-  };
+  // Pagination
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  if (loading) return <div style={{ padding: 40 }}>Loading dashboard…</div>;
 
   return (
-    <div
-      style={{
-        minHeight: "100%",
-        background: "#f3f4f6",
-        padding: "18px 18px 28px",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 18,
-        }}
-      >
-        <p style={{ margin: 0, fontSize: 36, color: "#1f1f1f" }}>
-          Welcome to your <b>Teacher Dashboard</b>
-        </p>
-      </div>
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1.3fr",
-          gap: 14,
-          marginBottom: 12,
-        }}
-      >
-        <div
-          style={{
-            border: "none",
-            borderRadius: 12,
-            background: "#ffffff",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-            minHeight: 44,
-            display: "flex",
-            alignItems: "center",
-            padding: "0 12px",
-            fontSize: 30,
-            color: "#3c3c3c",
-          }}
-        >
-          Dashboard
+    <>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontWeight: 800 }}>
+          Welcome, <b>{teacherName}</b> — Teacher Dashboard
         </div>
-
-        <input
-          placeholder="Search Class"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{
-            border: "none",
-            borderRadius: 16,
-            background: "#ffffff",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-            minHeight: 44,
-            padding: "0 14px",
-            fontSize: 36,
-            color: "#3c3c3c",
-            outline: "none",
-          }}
-        />
       </div>
 
-      <div
-        style={{
-          border: "none",
-          borderRadius: 12,
-          background: "#ffffff",
-          boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
-          display: "grid",
-          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-          marginBottom: 14,
-        }}
-      >
-        {stats.map((item) => (
+      {/* Stat pills */}
+      <div style={{ display: "flex", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
+        {[
+          { label: "Total Courses",  value: stats.totalCourses  },
+          { label: "Total Students", value: stats.totalStudents },
+        ].map(s => (
           <div
-            key={item.label}
-            style={{
-              minHeight: 56,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 36,
-              color: "#2f2f2f",
-            }}
+            key={s.label}
+            className="glassCard"
+            style={{ padding: "10px 20px", display: "flex", flexDirection: "column", gap: 2, minWidth: 120 }}
           >
-            <span>{item.label}:&nbsp;</span>
-            <span>{item.value}</span>
+            <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, textTransform: "uppercase" }}>
+              {s.label}
+            </div>
+            <div style={{ fontSize: 26, fontWeight: 900, color: "#2f6fb3" }}>{s.value}</div>
           </div>
         ))}
       </div>
 
-      <div
-        key={page}
-        style={{
-          animation: `${direction === 1 ? "slideInFromRight" : "slideInFromLeft"} 280ms ease`,
-        }}
-      >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-            gap: 12,
-          }}
-        >
-          {visibleClasses.map((item) => (
-            <div
-              key={item.id}
-              style={{
-                border: "none",
-                borderRadius: 14,
-                background: "#ffffff",
-                boxShadow: "0 3px 14px rgba(0,0,0,0.10)",
-                overflow: "hidden",
-                height: 430,
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
-              <div
-                style={{
-                  height: 210,
-                  borderBottom: "1px solid rgba(0,0,0,0.10)",
-                  position: "relative",
-                  background: "#f5f5f5",
-                }}
-              >
-                <div
+      {/* Featured carousel */}
+      {item && (
+        <div className="glassCard" style={{ marginTop: 14, padding: 14, position: "relative" }}>
+          {featured.length > 1 && (
+            <button onClick={prev} aria-label="Previous" style={arrowBtn("left")}>‹</button>
+          )}
+          {featured.length > 1 && (
+            <button onClick={next} aria-label="Next" style={arrowBtn("right")}>›</button>
+          )}
+
+          <div className="featuredWrap">
+            <div className="featuredImg">
+              <img src={item.img} alt={item.title} />
+            </div>
+            <div className="featuredMid">
+              <div className="kicker">{item.code}</div>
+              <div className="featuredTitle">{item.title}</div>
+              <div className="featuredDesc">Your active course.</div>
+              <div style={{ marginTop: 10, fontSize: 12, color: "#6b7280" }}>
+                Click "Class Management" to manage students.
+              </div>
+            </div>
+            <div className="featuredImg">
+              <img src={featured[(idx + 1) % featured.length]?.img || item.img} alt="next" />
+            </div>
+          </div>
+
+          {featured.length > 1 && (
+            <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 10 }}>
+              {featured.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setIdx(i)}
                   style={{
-                    position: "absolute",
-                    left: 0,
-                    top: 0,
-                    width: "100%",
-                    height: "100%",
-                    background:
-                      "linear-gradient(to bottom right, transparent calc(50% - 1px), rgba(0,0,0,0.18) 50%, transparent calc(50% + 1px)), linear-gradient(to top right, transparent calc(50% - 1px), rgba(0,0,0,0.18) 50%, transparent calc(50% + 1px))",
+                    width: 8, height: 8, borderRadius: "50%",
+                    border: "none", cursor: "pointer", padding: 0,
+                    background: i === idx ? "#2f6fb3" : "#d1d5db",
                   }}
                 />
-              </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
-              <div
-                style={{
-                  padding: "12px",
-                  flex: 1,
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                }}
-              >
-                <div>
-                  <div
-                    style={{
-                      fontSize: 22,
-                      lineHeight: 1.2,
-                      color: "#3a3a3a",
-                      fontWeight: 600,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    {item.name}
-                  </div>
+      {/* Browse courses */}
+      <div className="sectionTitle">Browse Courses</div>
 
-                  <div
-                    style={{
-                      fontSize: 16,
-                      color: "#4a4a4a",
-                      marginTop: 6,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    Class Code: {item.code}
-                  </div>
-                </div>
+      <div className="searchRow" style={{ marginTop: 10, display: "flex", gap: 12, alignItems: "center" }}>
+        <div className="searchPill" style={{ flex: 1, maxWidth: 420 }}>
+          <input
+            value={query}
+            onChange={e => { setQuery(e.target.value); setPage(1); }}
+            placeholder="Search by Course Name, Course Code, or Course Lecturer"
+            style={{ flex: 1 }}
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              style={{ border: "none", background: "transparent", cursor: "pointer", opacity: 0.7, fontSize: 12 }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+        <select className="yearPill" defaultValue="2025-2026 COLLEGE">
+          <option>2025-2026 COLLEGE</option>
+        </select>
+      </div>
 
-                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                  <button
-                    style={{
-                      border: "none",
-                      background: "#f1f1f1",
-                      boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
-                      borderRadius: 8,
-                      minHeight: 36,
-                      minWidth: 120,
-                      fontSize: 14,
-                      color: "#4a4a4a",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Enter Class
-                  </button>
-
-                  <button
-                    style={{
-                      border: "none",
-                      background: "#f1f1f1",
-                      boxShadow: "0 1px 4px rgba(0,0,0,0.12)",
-                      borderRadius: 8,
-                      minHeight: 36,
-                      minWidth: 120,
-                      fontSize: 14,
-                      color: "#4a4a4a",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Edit Class
-                  </button>
+      <div className="courseGrid">
+        {visible.length === 0 ? (
+          <div style={{ padding: 16, color: "#6b7280" }}>
+            {courses.length === 0
+              ? "No courses yet. Go to Class Management to add courses."
+              : "No courses match your search."}
+          </div>
+        ) : (
+          visible.map(c => (
+            <div
+              key={c.id}
+              className="courseCardImg"
+              onClick={() => router.push("/teacher/ClassManagement")}
+            >
+              <img src={c.img} alt={c.title} />
+              <div className="courseOverlay">
+                <div className="courseOverlayText">
+                  <div style={{ fontSize: 11, opacity: 0.8, fontWeight: 700 }}>{c.code}</div>
+                  {c.title}
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+          ))
+        )}
       </div>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 16 }}>
-        <div style={{ display: "flex", gap: 6 }}>
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div style={{ marginTop: 16, display: "flex", justifyContent: "flex-end", gap: 8 }}>
           <button
-            onClick={goPrev}
+            onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page === 1}
-            style={{
-              border: "none",
-              background: "#ffffff",
-              boxShadow: "0 1px 5px rgba(0,0,0,0.12)",
-              borderRadius: 8,
-              minHeight: 32,
-              minWidth: 92,
-              fontSize: 20,
-              color: "#4a4a4a",
-              cursor: page === 1 ? "not-allowed" : "pointer",
-              opacity: page === 1 ? 0.55 : 1,
-            }}
+            style={pageBtn}
           >
             Previous
           </button>
-
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i + 1}
+              onClick={() => setPage(i + 1)}
+              style={{
+                ...pageBtn,
+                background: page === i + 1 ? "#2f6fb3" : "white",
+                color: page === i + 1 ? "white" : "#374151",
+                fontWeight: page === i + 1 ? 800 : 600,
+              }}
+            >
+              {i + 1}
+            </button>
+          ))}
           <button
-            style={{
-              border: "none",
-              background: "#ffffff",
-              boxShadow: "0 1px 5px rgba(0,0,0,0.12)",
-              borderRadius: 8,
-              minHeight: 32,
-              minWidth: 42,
-              fontSize: 20,
-              color: "#4a4a4a",
-            }}
-          >
-            {page}
-          </button>
-
-          <button
-            onClick={goNext}
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            style={{
-              border: "none",
-              background: "#ffffff",
-              boxShadow: "0 1px 5px rgba(0,0,0,0.12)",
-              borderRadius: 8,
-              minHeight: 32,
-              minWidth: 72,
-              fontSize: 20,
-              color: "#4a4a4a",
-              cursor: page === totalPages ? "not-allowed" : "pointer",
-              opacity: page === totalPages ? 0.55 : 1,
-            }}
+            style={pageBtn}
           >
-            Next
+            Next →
           </button>
         </div>
-      </div>
-
-      <style jsx>{`
-        @keyframes slideInFromRight {
-          from {
-            opacity: 0;
-            transform: translateX(28px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-
-        @keyframes slideInFromLeft {
-          from {
-            opacity: 0;
-            transform: translateX(-28px);
-          }
-          to {
-            opacity: 1;
-            transform: translateX(0);
-          }
-        }
-      `}</style>
-    </div>
+      )}
+    </>
   );
 }
+
+const arrowBtn = (side) => ({
+  position: "absolute", [side]: 10, top: "50%", transform: "translateY(-50%)",
+  width: 34, height: 34, borderRadius: 999,
+  border: "1px solid rgba(0,0,0,.12)", background: "rgba(255,255,255,.85)",
+  cursor: "pointer", zIndex: 3, fontSize: 18, lineHeight: 1,
+});
+
+const pageBtn = {
+  height: 34, minWidth: 34, padding: "0 10px",
+  borderRadius: 8, border: "1px solid #d1d5db",
+  background: "white", color: "#374151", fontSize: 13,
+  cursor: "pointer", fontWeight: 600,
+};

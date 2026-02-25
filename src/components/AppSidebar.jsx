@@ -25,6 +25,7 @@ const baseItemStyle = (active) => ({
   color: active ? "var(--blue-main)" : "#6b7280",
   background: active ? "rgba(47,111,179,.10)" : "transparent",
   fontWeight: active ? 800 : 700,
+  whiteSpace: "nowrap",
 });
 
 function NavIcon({ Icon, active }) {
@@ -74,15 +75,17 @@ export default function AppSidebar({ role = "student" }) {
   return (
     <aside
       style={{
-        width: 260,
-        minHeight: "calc(100vh - 40px)",
+        width: 292,
+        minWidth: 292,
+        height: "100%",
         background: "var(--sidebar-bg)",
         borderRight: "1px solid #C9C9C9",
         borderRadius: "var(--radius-lg)",
         boxShadow: "var(--shadow-soft)",
         padding: 18,
-        position: "sticky",
-        top: 20,
+        display: "flex",
+        flexDirection: "column",
+        boxSizing: "border-box",
         backdropFilter: "blur(8px)",
       }}
     >
@@ -106,10 +109,7 @@ export default function AppSidebar({ role = "student" }) {
 
       <div
         style={{
-          position: "absolute",
-          bottom: 18,
-          left: 18,
-          right: 18,
+          marginTop: "auto",
           color: "#6b7280",
           fontSize: 12,
         }}

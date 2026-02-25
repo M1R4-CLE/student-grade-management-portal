@@ -106,6 +106,7 @@
 
 html, body {
   font-family: var(--font-main), system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  margin: 0;
 }
 
 body{

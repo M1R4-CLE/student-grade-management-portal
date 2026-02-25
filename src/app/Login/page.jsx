@@ -1,7 +1,9 @@
 "use client";
 
+export const dynamic = "force-dynamic";
+
 import { useState } from "react";
-import { supabase } from "@/app/lib/supabaseClient";
+import { getSupabaseClient } from "@/app/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import BrandLogo from "@/components/BrandLogo";
 import Link from "next/link";
@@ -17,6 +19,13 @@ export default function LoginPage() {
     e.preventDefault();
     setErr("");
     setLoading(true);
+
+    const supabase = getSupabaseClient();
+    if (!supabase) {
+      setErr("Authentication is not configured. Please set Supabase environment variables.");
+      setLoading(false);
+      return;
+    }
 
     const { error } = await supabase.auth.signInWithPassword({
       email,

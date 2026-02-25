@@ -18,22 +18,32 @@ export default function PageShell({
   const { items, lastNew } = useRealtimeNotifications({ limit: 10 });
 
   return (
-    <div style={{ padding: 20 }}>
+    <div
+      style={{
+        padding: 20,
+        height: "100dvh",
+        boxSizing: "border-box",
+        overflow: "hidden",
+      }}
+    >
       <ToastCenter lastNotification={lastNew} />
 
-      <div style={{ display: "flex", gap: 18, alignItems: "flex-start" }}>
+      <div style={{ display: "flex", gap: 18, alignItems: "stretch", height: "100%" }}>
         <AppSidebar role={role} />
 
         <main
           style={{
             flex: 1,
-            minHeight: "calc(100vh - 40px)",
+            minHeight: 0,
+            height: "100%",
             background: "var(--card-bg)",
             border: "1px solid var(--border-light)",
             borderRadius: "var(--radius-lg)",
             boxShadow: "var(--shadow-soft)",
             padding: 18,
             backdropFilter: "blur(8px)",
+            overflowY: "auto",
+            boxSizing: "border-box",
           }}
         >
           {title && (
