@@ -335,9 +335,9 @@ export default function TeacherClassManagementPage() {
         (data || []).map(e => ({
           enrollId:   e.id,
           studentId:  e.profiles?.id,
-          name:       e.profiles?.full_name  || "—",
-          studentNo:  e.profiles?.student_no || "—",
-          email:      e.profiles?.email      || "—",
+          name:       e.profiles?.full_name  || "-",
+          studentNo:  e.profiles?.student_no || "-",
+          email:      e.profiles?.email      || "-",
           enrolledAt: new Date(e.enrolled_at).toLocaleDateString(),
         }))
       );
@@ -349,11 +349,12 @@ export default function TeacherClassManagementPage() {
   const totalPages     = Math.max(1, Math.ceil(courses.length / PAGE_SIZE));
   const visibleCourses = courses.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  if (loading) return <div style={{ padding: 40 }}>Loading Class Management…</div>;
+  if (loading) return <div style={{ padding: 40 }}>Loading Class Management...</div>;
 
   // ── Render ──────────────────────────────────────────────────
   return (
-    <div style={{ width: "100%" }}>
+    <>
+    <div className="classMgmtScroll" style={pageScrollWrap}>
 
       {/* Title */}
       <h1 style={{ fontWeight: 900, fontSize: 26, marginBottom: 20, color: "#111827" }}>
@@ -378,7 +379,7 @@ export default function TeacherClassManagementPage() {
           onKeyDown={e => e.key === "Enter" && handleAddCourse()}
         />
         <button onClick={handleAddCourse} disabled={addBusy} style={addBtn}>
-          {addBusy ? "Adding…" : "Add Course"}
+          {addBusy ? "Adding..." : "Add Course"}
         </button>
         <button
           onClick={openDeleteModal}
@@ -403,7 +404,7 @@ export default function TeacherClassManagementPage() {
               disabled={editBusy || coverBusy}
               style={saveEditBtn}
             >
-              {editBusy ? "Saving…" : "Save Edit"}
+              {editBusy ? "Saving..." : "Save Edit"}
             </button>
             <button
               onClick={cancelEditCourse}
@@ -571,7 +572,7 @@ export default function TeacherClassManagementPage() {
               <div style={editLabel}>Students</div>
               <div style={studentListBox}>
                 {rosterLoading ? (
-                  <div style={{ color: "#6b7280", fontSize: 13 }}>Loading students…</div>
+                  <div style={{ color: "#6b7280", fontSize: 13 }}>Loading students...</div>
                 ) : roster.length === 0 ? (
                   <div style={{ color: "#6b7280", fontSize: 13 }}>No students enrolled yet.</div>
                 ) : (
@@ -579,7 +580,7 @@ export default function TeacherClassManagementPage() {
                     <div key={s.enrollId} style={studentItem}>
                       <div style={{ fontWeight: 700, color: "#111827" }}>{s.name}</div>
                       <div style={{ fontSize: 12, color: "#6b7280" }}>
-                        {s.studentNo} • {s.email}
+                        {s.studentNo} - {s.email}
                       </div>
                     </div>
                   ))
@@ -601,11 +602,11 @@ export default function TeacherClassManagementPage() {
             Select a course above to view the roster list.
           </div>
         ) : rosterLoading ? (
-          <div style={{ color: "#6b7280", fontSize: 13 }}>Loading roster…</div>
+          <div style={{ color: "#6b7280", fontSize: 13 }}>Loading roster...</div>
         ) : (
           <>
             <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 12 }}>
-              Roster —{" "}
+              Roster -{" "}
               <span style={{ color: "#2f6fb3" }}>{selectedCourse.title}</span>{" "}
               <span style={{ fontWeight: 600, color: "#6b7280", fontSize: 13 }}>
                 ({selectedCourse.code})
@@ -681,13 +682,24 @@ export default function TeacherClassManagementPage() {
                 Cancel
               </button>
               <button onClick={handleDeleteCourse} disabled={deleteBusy} style={dangerBtn}>
-                {deleteBusy ? "Deleting…" : "Continue"}
+                {deleteBusy ? "Deleting..." : "Continue"}
               </button>
             </div>
           </div>
         </div>
       )}
     </div>
+    <style jsx>{`
+      .classMgmtScroll {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      .classMgmtScroll::-webkit-scrollbar {
+        width: 0;
+        height: 0;
+      }
+    `}</style>
+    </>
   );
 }
 
@@ -698,6 +710,14 @@ const sectionCard = {
   borderRadius:  16,
   padding:       20,
   boxShadow:     "0 8px 20px rgba(0,0,0,0.06)",
+};
+
+const pageScrollWrap = {
+  width: "100%",
+  height: "100%",
+  overflowY: "auto",
+  paddingRight: 6,
+  boxSizing: "border-box",
 };
 
 const inputStyle = {
@@ -912,3 +932,4 @@ const studentItem = {
   borderBottom: "1px solid #e5e7eb",
   paddingBottom: 8,
 };
+

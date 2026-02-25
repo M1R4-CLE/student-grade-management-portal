@@ -8,20 +8,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 
-function getCourseImg(title = "") {
-  const t = title.toLowerCase();
-  if (t.includes("data struct") || t.includes("algorithm")) return "/images/dsa.jpg";
-  if (t.includes("database") || t.includes("dbms")) return "/images/dms.jpg";
-  if (t.includes("systems analysis") || t.includes("sad")) return "/images/sad.jpg";
-  if (t.includes("object") || t.includes("oop")) return "/images/oop.jpg";
-  if (t.includes("ethics")) return "/images/ethics.jpg";
-  if (t.includes("quantitative") || t.includes("statistic")) return "/images/qms.jpg";
-  if (t.includes("web")) return "/images/wed.jpg";
-  if (t.includes("human") || t.includes("hci")) return "/images/hci.jpg";
-  if (t.includes("software")) return "/images/soe.jpg";
-  return "/images/dsa.jpg";
-}
-
 const PAGE_SIZE = 6;
 
 export default function TeacherDashboardPage() {
@@ -57,18 +43,35 @@ export default function TeacherDashboardPage() {
       }
       if (!cancelled) setTeacherName(profile.full_name || "Teacher");
 
-      // Load courses
-      const { data: coursesData } = await supabase
+      // Load courses + cover metadata if available
+      let coursesData = [];
+      const withCover = await supabase
         .from("courses")
-        .select("id, code, title")
+        .select("id, code, title, cover_path")
         .eq("teacher_id", user.id)
         .order("id", { ascending: true });
+      if (!withCover.error) {
+        coursesData = withCover.data || [];
+      } else {
+        const basic = await supabase
+          .from("courses")
+          .select("id, code, title")
+          .eq("teacher_id", user.id)
+          .order("id", { ascending: true });
+        coursesData = (basic.data || []).map(c => ({ ...c, cover_path: "" }));
+      }
 
       if (cancelled) return;
-      const mapped = (coursesData || []).map(c => ({
-        ...c,
-        img: getCourseImg(c.title),
-      }));
+      const mapped = await Promise.all(
+        (coursesData || []).map(async c => {
+          let cover_url = "";
+          if (c.cover_path) {
+            const { data } = await supabase.storage.from("course-covers").createSignedUrl(c.cover_path, 1800);
+            cover_url = data?.signedUrl || "";
+          }
+          return { ...c, cover_url };
+        })
+      );
       setCourses(mapped);
 
       // Count total students enrolled in teacher's courses
@@ -112,14 +115,14 @@ export default function TeacherDashboardPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
-  if (loading) return <div style={{ padding: 40 }}>Loading dashboard…</div>;
+  if (loading) return <div style={{ padding: 40 }}>Loading dashboard...</div>;
 
   return (
     <>
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ fontWeight: 800 }}>
-          Welcome, <b>{teacherName}</b> — Teacher Dashboard
+          Welcome, <b>{teacherName}</b> - Teacher Dashboard
         </div>
       </div>
 
@@ -146,15 +149,19 @@ export default function TeacherDashboardPage() {
       {item && (
         <div className="glassCard" style={{ marginTop: 14, padding: 14, position: "relative" }}>
           {featured.length > 1 && (
-            <button onClick={prev} aria-label="Previous" style={arrowBtn("left")}>‹</button>
+            <button onClick={prev} aria-label="Previous" style={arrowBtn("left")}>{"<"}</button>
           )}
           {featured.length > 1 && (
-            <button onClick={next} aria-label="Next" style={arrowBtn("right")}>›</button>
+            <button onClick={next} aria-label="Next" style={arrowBtn("right")}>{">"}</button>
           )}
 
           <div className="featuredWrap">
             <div className="featuredImg">
-              <img src={item.img} alt={item.title} />
+              {item.cover_url ? (
+                <img src={item.cover_url} alt={item.title} />
+              ) : (
+                <div style={noCoverFeatured}>No cover yet</div>
+              )}
             </div>
             <div className="featuredMid">
               <div className="kicker">{item.code}</div>
@@ -165,7 +172,11 @@ export default function TeacherDashboardPage() {
               </div>
             </div>
             <div className="featuredImg">
-              <img src={featured[(idx + 1) % featured.length]?.img || item.img} alt="next" />
+              {(featured[(idx + 1) % featured.length]?.cover_url || item.cover_url) ? (
+                <img src={featured[(idx + 1) % featured.length]?.cover_url || item.cover_url} alt="next" />
+              ) : (
+                <div style={noCoverFeatured}>No cover yet</div>
+              )}
             </div>
           </div>
 
@@ -226,13 +237,23 @@ export default function TeacherDashboardPage() {
               className="courseCardImg"
               onClick={() => router.push("/teacher/ClassManagement")}
             >
-              <img src={c.img} alt={c.title} />
-              <div className="courseOverlay">
-                <div className="courseOverlayText">
-                  <div style={{ fontSize: 11, opacity: 0.8, fontWeight: 700 }}>{c.code}</div>
-                  {c.title}
+              {c.cover_url ? (
+                <>
+                  <img src={c.cover_url} alt={c.title} />
+                  <div className="courseOverlay">
+                    <div className="courseOverlayText">
+                      <div style={{ fontSize: 11, opacity: 0.8, fontWeight: 700 }}>{c.code}</div>
+                      {c.title}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div style={noCoverCard}>
+                  <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 800 }}>{c.code}</div>
+                  <div style={{ marginTop: 6, fontWeight: 900, color: "#111827" }}>{c.title}</div>
+                  <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>No cover yet</div>
                 </div>
-              </div>
+              )}
             </div>
           ))
         )}
@@ -267,7 +288,7 @@ export default function TeacherDashboardPage() {
             disabled={page === totalPages}
             style={pageBtn}
           >
-            Next →
+            Next
           </button>
         </div>
       )}
@@ -288,3 +309,25 @@ const pageBtn = {
   background: "white", color: "#374151", fontSize: 13,
   cursor: "pointer", fontWeight: 600,
 };
+
+const noCoverFeatured = {
+  width: "100%",
+  height: "100%",
+  display: "grid",
+  placeItems: "center",
+  background: "linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%)",
+  color: "#6b7280",
+  fontSize: 12,
+  fontWeight: 800,
+};
+
+const noCoverCard = {
+  width: "100%",
+  height: "100%",
+  padding: 14,
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "flex-end",
+  background: "linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%)",
+};
+
