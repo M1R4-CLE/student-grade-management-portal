@@ -43,10 +43,10 @@ export default function StudentDashboardPage() {
       if (!user) { router.replace("/login"); return; }
 
       const { data: profile } = await supabase
-        .from("profiles")
-        .select("role")
-        .eq("id", user.id)
-        .single();
+      .from("profiles")
+      .select("role, full_name")
+      .eq("id", user.id)
+      .single();
 
       if (!profile || profile.role !== "student") {
         router.replace("/teacher/Dashboard");

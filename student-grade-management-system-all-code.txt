@@ -1,0 +1,1494 @@
+================================================================================
+STUDENT GRADE MANAGEMENT SYSTEM - COMPLETE SOURCE CODE
+================================================================================
+
+This file contains all the source code from the Student Grade Management System,
+including JSX pages, layouts, global CSS, components, and library files.
+
+================================================================================
+================================================================================
+FILE: src/app/globals.css
+================================================================================
+
+:root {
+  /* Font */
+  --font-main: var(--font-poppins);
+
+  /* Brand Colors */
+  --blue-main: #2f6fb3;
+  --green-main: #57b447;
+  --blue-dark: #1f4e8c;
+  --blue-light: #4a90e2;
+  --gray-brand: #6e6e6e;
+
+  /* Optional UI neutrals */
+  --text: #111827;
+  --muted: #6b7280;
+  --card: rgba(255, 255, 255, 0.75);
+  --border: rgba(0, 0, 0, 0.06);
+
+  /* Additional CSS Variables */
+  --card-bg: rgba(255, 255, 255, 0.78);
+  --border-light: rgba(0, 0, 0, 0.08);
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --shadow-soft: 0 12px 30px rgba(0,0,0,.08);
+  --sidebar-bg: #fafafa;
+  --gray-text: #6b7280;
+}
+.loginWrap{
+  min-height:100vh;
+  display:grid;
+  place-items:center;
+  background: radial-gradient(circle at top, #ffffff 0%, #e9e9e9 55%, #cfcfcf 100%);
+}
+
+.loginCard{
+  width: 420px;
+  padding: 22px 22px 18px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.70);
+  border: 1px solid rgba(0,0,0,.15);
+  box-shadow: 0 18px 45px rgba(0,0,0,.15);
+  backdrop-filter: blur(8px);
+}
+
+.roleRow{
+  display:flex;
+  justify-content:center;
+  gap: 22px;
+  margin: 10px 0 14px;
+  color:#333;
+}
+
+.roleItem{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  font-weight: 700;
+  letter-spacing: .5px;
+}
+
+.loginForm{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  align-items:center;   
+}
+
+.loginInput{
+  width:85%;
+  max-width:300px;
+  padding:12px 14px;
+  border:1px solid rgba(0,0,0,.15);
+  background:rgba(255,255,255,.65);
+  outline:none;
+  border-radius:10px;
+}
+
+.loginInput:focus{
+  border-color: rgba(47,111,179,.6);
+  box-shadow: 0 0 0 3px rgba(47,111,179,.12);
+}
+
+.loginBtn{
+  width:85%;
+  max-width:300px;
+  padding:12px 14px;
+  border:1px solid rgba(0,0,0,.35);
+  background:rgba(255,255,255,.7);
+  font-weight:800;
+  cursor:pointer;
+  border-radius:10px;
+}
+
+.loginBtn:disabled{
+  opacity:.7;
+  cursor:not-allowed;
+}
+
+.forgotBtn{
+  margin-top: 2px;
+  background: transparent;
+  border: none;
+  color: #444;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.loginError{
+  color: #b91c1c;
+  margin: 0;
+  font-size: 13px;
+}
+
+html, body {
+  font-family: var(--font-main), system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+body{
+  background:
+    radial-gradient(circle at 50% 0%, rgba(0,0,0,.18), transparent 55%),
+    linear-gradient(180deg, #f7f7f7 0%, #ececec 45%, #f7f7f7 100%);
+}
+
+.glassCard{
+  background: rgba(255,255,255,.78);
+  border: 1px solid rgba(0,0,0,.08);
+  border-radius: 18px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.08);
+  backdrop-filter: blur(10px);
+}
+
+.sectionTitle{
+  font-weight: 800;
+  color: var(--blue-main);
+  margin-top: 14px;
+}
+
+.searchRow{
+  margin-top: 10px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.searchPill{
+  flex: 1;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,.10);
+  background: rgba(255,255,255,.65);
+}
+
+.searchPill input{
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  outline: none !important;
+}
+
+.yearPill{
+  width: 170px;
+  border-radius: 999px;
+  padding: 10px 12px;
+}
+
+.featuredWrap{
+  display:grid;
+  grid-template-columns: 160px 1fr 160px;
+  gap: 14px;
+  align-items: center;
+}
+
+.featuredImg{
+  height: 120px;
+  border-radius: 18px;
+  overflow:hidden;
+  border: 1px solid rgba(0,0,0,.08);
+  position: relative;
+}
+
+.featuredImg img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+.featuredMid{
+  padding: 14px 16px;
+}
+
+.kicker{
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.featuredTitle{
+  font-weight: 900;
+  margin-top: 2px;
+}
+
+.featuredDesc{
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 6px;
+  line-height: 1.35;
+}
+
+.courseGrid{
+  margin-top: 14px;
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.courseCardImg{
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,.08);
+  background: rgba(255,255,255,.65);
+  box-shadow: 0 10px 20px rgba(0,0,0,.06);
+  height: 170px;
+  position: relative;
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.courseCardImg:hover{
+  transform: translateY(-4px);
+  box-shadow: 0 18px 32px rgba(47,111,179,.18);
+}
+
+.courseCardImg img{
+  width:100%;
+  height:100%;
+  object-fit: cover;
+  display:block;
+  filter: saturate(1.05);
+}
+
+.courseOverlay{
+  position:absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,.00) 35%, rgba(0,0,0,.70) 100%);
+  display:flex;
+  align-items:flex-end;
+}
+
+.courseOverlayText{
+  width:100%;
+  padding: 14px;
+  color: white;
+  font-weight: 900;
+  text-shadow: 0 10px 25px rgba(0,0,0,.45);
+}
+
+
+================================================================================
+================================================================================
+FILE: src/app/layout.jsx (Root Layout)
+================================================================================
+
+import "./globals.css";
+import { Poppins } from "next/font/google";
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  variable: "--font-poppins",
+});
+
+export const metadata = {
+  title: "Student Grade Management Portal",
+  description: "Student and Teacher Grade Management System",
+};
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body className={poppins.className}>
+        {children}
+      </body>
+    </html>
+  );
+}
+
+
+================================================================================
+================================================================================
+FILE: src/app/page.jsx (Home - Redirect)
+================================================================================
+
+import { redirect } from "next/navigation";
+
+export default function Home() {
+  redirect("/login");
+}
+
+
+================================================================================
+================================================================================
+FILE: src/app/login/page.jsx
+================================================================================
+
+"use client";
+
+import { useState } from "react";
+import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
+import BrandLogo from "@/components/BrandLogo";
+import Link from "next/link";
+
+export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const onLogin = async (e) => {
+    e.preventDefault();
+    setErr("");
+    setLoading(true);
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setErr(error.message);
+      setLoading(false);
+      return;
+    }
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData?.session?.user;
+
+    if (!user) {
+      setErr("No session created. Try again.");
+      setLoading(false);
+      return;
+    }
+
+    const { data: profile, error: pErr } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (pErr || !profile) {
+      setErr("Profile not found. Ask admin.");
+      setLoading(false);
+      return;
+    }
+
+    router.replace(
+      profile.role === "teacher"
+        ? "/teacher/Dashboard"
+        : "/student/Dashboard"
+    );
+  };
+
+  return (
+    <main
+      className="loginWrap"
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100dvh",
+        margin: 0,
+        padding: 0,
+        overflow: "hidden",
+        backgroundImage: "url('/images/BG.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      <div className="loginCard">
+        <div style={{ display: "grid", placeItems: "center" }}>
+          <BrandLogo />
+          <div style={{ marginTop: 10, marginBottom: 10, fontWeight: 700, textAlign: "center" }}>
+            Welcome to Student Grade
+            <br />
+            Management Portal
+          </div>
+        </div>
+
+        <form onSubmit={onLogin} className="loginForm">
+          <input
+            className="loginInput"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email address"
+            type="email"
+            required
+          />
+
+          <input
+            className="loginInput"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            type="password"
+            required
+          />
+
+          {err && <p className="loginError">{err}</p>}
+
+          <button className="loginBtn" type="submit" disabled={loading}>
+            {loading ? "LOGGING IN..." : "LOG IN"}
+          </button>
+
+          <Link href="/forgot-password" className="forgotBtn">
+            Forgot Login
+          </Link>
+        </form>
+      </div>
+    </main>
+  );
+}
+
+
+================================================================================
+================================================================================
+FILE: src/app/forgot-password/page.jsx
+================================================================================
+
+"use client";
+
+import Link from "next/link";
+
+export default function ForgotPasswordPage() {
+  return (
+    <main className="loginWrap">
+      <div className="loginCard">
+        <h1 style={{ textAlign: "center", marginBottom: 12 }}>
+          Forgot Password
+        </h1>
+
+        <p style={{ textAlign: "center", color: "#6b7280", marginBottom: 20 }}>
+          Password reset via email is not enabled.
+          <br />
+          Please contact the system administrator
+          <br />
+          to reset your account.
+        </p>
+
+        <div className="loginForm">
+          <Link href="/login" className="loginBtn" style={{ textAlign: "center" }}>
+            Back to Login
+          </Link>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+
+================================================================================
+================================================================================
+FILE: src/app/reset-password/page.jsx
+================================================================================
+
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
+
+export default function ResetPasswordPage() {
+  const router = useRouter();
+  const [password, setPassword] = useState("");
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    // When user opens the reset link, Supabase sets a recovery session automatically
+  }, []);
+
+  const updatePassword = async (e) => {
+    e.preventDefault();
+    setErr("");
+    setMsg("");
+
+    const { error } = await supabase.auth.updateUser({ password });
+
+    if (error) return setErr(error.message);
+
+    setMsg("Password updated! Redirecting to login...");
+    setTimeout(() => router.replace("/login"), 800);
+  };
+
+  return (
+    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
+      <form
+        onSubmit={updatePassword}
+        style={{
+          width: 360,
+          padding: 20,
+          border: "1px solid #ddd",
+          borderRadius: 10,
+          background: "#fff",
+        }}
+      >
+        <h1 style={{ marginBottom: 12 }}>Reset Password</h1>
+
+        <input
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="New password"
+          type="password"
+          style={{ width: "100%", padding: 10, marginBottom: 10 }}
+        />
+
+        {err && <p style={{ color: "red" }}>{err}</p>}
+        {msg && <p style={{ color: "green" }}>{msg}</p>}
+
+        <button type="submit" style={{ width: "100%", padding: 10 }}>
+          Update password
+        </button>
+      </form>
+    </main>
+  );
+}
+
+
+================================================================================
+================================================================================
+FILE: src/app/student/layout.jsx
+================================================================================
+
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/app/lib/supabaseClient";
+import PageShell from "@/components/PageShell";
+
+function fmtWhen(dueAt, kind) {
+  const d = new Date(dueAt);
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
+  const type = String(kind || "").toUpperCase();
+  return `${date} - ${type}`;
+}
+
+export default function StudentLayout({ children }) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [fullName, setFullName] = useState("Student");
+  const [studentId, setStudentId] = useState("");
+  const [upcoming, setUpcoming] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      setLoading(true);
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
+
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
+      const { data: profile, error: pErr } = await supabase
+        .from("profiles")
+        .select("full_name, role, student_number")
+        .eq("id", user.id)
+        .single();
+
+      if (pErr || !profile) {
+        router.replace("/login");
+        return;
+      }
+
+      if (profile.role !== "student") {
+        router.replace("/teacher/Dashboard");
+        return;
+      }
+
+      if (cancelled) return;
+
+      setFullName(profile.full_name || "Student");
+      setStudentId(profile.student_number || "");
+
+      const { data: enrolls, error: eErr } = await supabase
+        .from("enrollments")
+        .select("course_id")
+        .eq("student_id", user.id);
+
+      if (cancelled) return;
+
+      if (eErr) {
+        setUpcoming([]);
+        setLoading(false);
+        return;
+      }
+
+      const courseIds = (enrolls || []).map((x) => x.course_id).filter(Boolean);
+
+      if (!courseIds.length) {
+        setUpcoming([]);
+        setLoading(false);
+        return;
+      }
+
+      const nowIso = new Date().toISOString();
+
+      const { data: events, error: evErr } = await supabase
+        .from("course_events")
+        .select("id, kind, title, due_at, courses(code)")
+        .in("course_id", courseIds)
+        .not("due_at", "is", null)
+        .gte("due_at", nowIso)
+        .order("due_at", { ascending: true })
+        .limit(6);
+
+      if (cancelled) return;
+
+      if (evErr) {
+        setUpcoming([]);
+        setLoading(false);
+        return;
+      }
+
+      const mapped = (events || []).map((ev) => {
+        const code = ev.courses?.code ? `${ev.courses.code} - ` : "";
+        return {
+          title: `${code}${ev.title}`,
+          when: fmtWhen(ev.due_at, ev.kind),
+        };
+      });
+
+      setUpcoming(mapped);
+      setLoading(false);
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  if (loading) return <div style={{ padding: 40 }}>Loading...</div>;
+
+  return (
+    <PageShell role="student" fullName={fullName} studentId={studentId} upcoming={upcoming}>
+      {children}
+    </PageShell>
+  );
+}
+
+
+================================================================================
+================================================================================
+FILE: src/app/student/Dashboard/page.jsx
+================================================================================
+
+"use client";
+
+import React, { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/app/lib/supabaseClient";
+
+import {
+  AcademicStatsProvider,
+  AcademicPerformanceCard,
+  GradeDistributionCard,
+} from "@/components/AcademicPerformanceCards";
+
+export default function StudentDashboardPage() {
+  const router = useRouter();
+
+  const courses = [
+    { title: "Data Structures and Algorithms", img: "/images/dsa.jpg" },
+    { title: "Database Management Systems", img: "/images/dms.jpg" },
+    { title: "Systems Analysis and Design", img: "/images/sad.jpg" },
+    { title: "Object-Oriented Programming", img: "/images/oop.jpg" },
+    { title: "Professional Ethics in IT", img: "/images/ethics.jpg" },
+    { title: "Quantitative Methods / Statistics", img: "/images/qms.jpg" },
+    { title: "Web Development", img: "/images/wed.jpg" },
+    { title: "Human-Computer Interaction", img: "/images/hci.jpg" },
+    { title: "Software Engineering", img: "/images/soe.jpg" },
+  ];
+
+  const featured = [
+    {
+      code: "IS 201",
+      title: "Data Structures and Algorithms",
+      desc:
+        "Covers fundamental data structures such as arrays, linked lists, stacks, queues, trees, and graphs. Introduces algorithm design, sorting, searching, and complexity analysis.",
+      instructor: "Marzel Baste",
+      leftImg: "/images/dsa.jpg",
+      rightImg: "/images/dms.jpg",
+    },
+    {
+      code: "IS 202",
+      title: "Database Management Systems",
+      desc:
+        "Introduces relational databases, SQL, normalization, transactions, indexing, and database design for real-world applications.",
+      instructor: "John Doe",
+      leftImg: "/images/dms.jpg",
+      rightImg: "/images/sad.jpg",
+    },
+    {
+      code: "IS 203",
+      title: "Systems Analysis and Design",
+      desc:
+        "Focuses on requirements gathering, modeling, UML, and designing information systems based on user needs and constraints.",
+      instructor: "Jane Smith",
+      leftImg: "/images/sad.jpg",
+      rightImg: "/images/oop.jpg",
+    },
+  ];
+
+  const [query, setQuery] = useState("");
+  const [schoolYear, setSchoolYear] = useState("2025-2026 COLLEGE");
+  const [idx, setIdx] = useState(0);
+  const item = featured[idx];
+  const [showLogout, setShowLogout] = useState(false);
+
+  const MAX_LEN = 20;
+
+  const handleSearch = (e) => {
+    let value = e.target.value;
+    value = value.replace(/[^a-zA-Z0-9\s]/g, "");
+    value = value.replace(/\s+/g, " ");
+    value = value.replace(/(.)\1{3,}/g, "$1$1$1");
+    value = value.trimStart().slice(0, MAX_LEN);
+    setQuery(value);
+  };
+
+  const filteredCourses = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return courses;
+    return courses.filter((c) => c.title.toLowerCase().includes(q));
+  }, [query]);
+
+  const next = () => setIdx((p) => (p + 1) % featured.length);
+  const prev = () => setIdx((p) => (p - 1 + featured.length) % featured.length);
+
+  useEffect(() => {
+    const t = setInterval(() => {
+      setIdx((p) => (p + 1) % featured.length);
+    }, 5000);
+    return () => clearInterval(t);
+  }, [featured.length]);
+
+  const confirmLogout = async () => {
+    await supabase.auth.signOut();
+    router.replace("/login");
+  };
+
+  return (
+    <>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontWeight: 800 }}>
+          Welcome to your <b>Student Dashboard</b>
+        </div>
+      </div>
+
+      <div className="glassCard" style={{ marginTop: 14, padding: 14, position: "relative" }}>
+        <button
+          onClick={prev}
+          aria-label="Previous"
+          style={{
+            position: "absolute",
+            left: 10,
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: 34,
+            height: 34,
+            borderRadius: 999,
+            border: "1px solid rgba(0,0,0,.12)",
+            background: "rgba(255,255,255,.85)",
+            cursor: "pointer",
+            zIndex: 3,
+          }}
+        >
+          ‹
+        </button>
+
+        <button
+          onClick={next}
+          aria-label="Next"
+          style={{
+            position: "absolute",
+            right: 10,
+            top: "50%",
+            transform: "translateY(-50%)",
+            width: 34,
+            height: 34,
+            borderRadius: 999,
+            border: "1px solid rgba(0,0,0,.12)",
+            background: "rgba(255,255,255,.85)",
+            cursor: "pointer",
+            zIndex: 3,
+          }}
+        >
+          ›
+        </button>
+
+        <div className="featuredWrap">
+          <div className="featuredImg">
+            <img src={item.leftImg} alt={item.title} />
+          </div>
+
+          <div className="featuredMid">
+            <div className="kicker">{item.code}</div>
+            <div className="featuredTitle">{item.title}</div>
+            <div className="featuredDesc">{item.desc}</div>
+            <div style={{ marginTop: 10, fontSize: 12, color: "#6b7280" }}>
+              {item.instructor} · Instructor
+            </div>
+          <div className </div>
+
+         ="featuredImg">
+            <img src={item.rightImg} alt={item.title} />
+          </div>
+        </div>
+      </div>
+
+      <div className="sectionTitle">Browse Courses</div>
+
+      <div className="searchRow" style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
+        <div className="searchPill" style={{ width: "100%", maxWidth: 420, display: "flex", alignItems: "center" }}>
+          <input
+            value={query}
+            onChange={handleSearch}
+            placeholder="Search course"
+            maxLength={MAX_LEN}
+            style={{ flex: 1 }}
+          />
+          {query.trim() && (
+            <button type="button" onClick={() => setQuery("")} style={{ border: "none", background: "transparent", cursor: "pointer", opacity: 0.7, fontSize: 12, fontWeight: 700, paddingRight: 10, whiteSpace: "nowrap" }}>
+              Clear
+            </button>
+          )}
+        </div>
+
+        <select className="yearPill" value={schoolYear} onChange={(e) => setSchoolYear(e.target.value)} style={{ width: 200 }}>
+          <option>2025-2026 COLLEGE</option>
+        </select>
+      </div>
+
+      <div className="courseGrid">
+        {filteredCourses.length === 0 ? (
+          <div style={{ padding: 16, color: "#6b7280" }}>No courses found.</div>
+        ) : (
+          filteredCourses.map((c) => (
+            <div key={c.title} className="courseCardImg">
+              <img src={c.img} alt={c.title} />
+              <div className="courseOverlay">
+                <div className="courseOverlayText">{c.title}</div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div style={{ marginTop: 18, display: "flex", justifyContent: "flex-end", color: "#111827" }}>
+        <button className="ghost" style={{ fontWeight: 800 }} onClick={() => router.push("/student/Courses")}>
+          My Courses →
+        </button>
+      </div>
+
+      {showLogout && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.25)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+          <div style={{ width: 360, background: "white", borderRadius: 12, padding: 20, boxShadow: "0 20px 40px rgba(0,0,0,.2)", position: "relative" }}>
+            <button onClick={() => setShowLogout(false)} style={{ position: "absolute", top: 10, right: 10, border: "none", background: "transparent", cursor: "pointer", fontSize: 16, opacity: 0.8 }} aria-label="Close">✕</button>
+            <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 10 }}>Log out</div>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Are you sure?</div>
+            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 18 }}>You will no longer be logged in on selected devices.</div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button onClick={() => setShowLogout(false)} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(0,0,0,.15)", background: "white", cursor: "pointer", fontWeight: 700 }}>Cancel</button>
+              <button onClick={confirmLogout} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "var(--blue-main)", color: "white", cursor: "pointer", fontWeight: 800 }}>Log out</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+
+================================================================================
+================================================================================
+FILE: src/app/student/Grades/page.jsx
+================================================================================
+
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
+
+export default function StudentGradesPage() {
+  const router = useRouter();
+  const [grades, setGrades] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [overallScore, setOverallScore] = useState(0);
+
+  useEffect(() => {
+    const run = async () => {
+      setLoading(true);
+      setErr("");
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
+
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
+      const { data: profile, error: pErr } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (pErr || !profile) {
+        router.replace("/login");
+        return;
+      }
+
+      if (profile.role !== "student") {
+        router.replace("/teacher/Dashboard");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("grades")
+        .select("prelim, midterm, final_grade, courses!inner(code, title, profiles!inner(full_name))")
+        .eq("student_id", user.id);
+
+      if (error) {
+        setErr(error.message);
+        setGrades([]);
+      } else {
+        const formattedGrades = (data || []).map((r) => ({
+          code: r.courses?.code || "N/A",
+          name: r.courses?.title || "N/A",
+          instructor: r.courses?.profiles?.full_name || "N/A",
+          midterm: r.midterm || 0,
+          final: r.final_grade || 0,
+        }));
+
+        setGrades(formattedGrades);
+
+        if (formattedGrades.length > 0) {
+          const total = formattedGrades.reduce((sum, g) => sum + g.final, 0);
+          const avg = (total / formattedGrades.length).toFixed(2);
+          setOverallScore(avg);
+        }
+      }
+
+      setLoading(false);
+    };
+
+    run();
+  }, [router]);
+
+  if (loading) return <div style={{ padding: 24 }}>Loading grades...</div>;
+
+  return (
+    <div style={{ padding: 24 }}>
+      <h1 style={{ marginBottom: 12 }}>Gradebook</h1>
+      {err && <p style={{ color: "red" }}>{err}</p>}
+
+      {!grades.length ? (
+        <p>No grades available yet. Enroll in courses and wait for grades to be entered.</p>
+      ) : (
+        <>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ background: "#f0f0f0" }}>
+                <th style={{ padding: 8, textAlign: "left" }}>Course Code</th>
+                <th style={{ padding: 8, textAlign: "left" }}>Course Name</th>
+                <th style={{ padding: 8, textAlign: "left" }}>Instructor</th>
+                <th style={{ padding: 8, textAlign: "right" }}>Midterm Grade</th>
+                <th style={{ padding: 8, textAlign: "right" }}>Final Grade</th>
+              </tr>
+            </thead>
+            <tbody>
+              {grades.map((g, idx) => (
+                <tr key={idx} style={{ borderBottom: "1px solid #ddd" }}>
+                  <td style={{ padding: 8 }}>{g.code}</td>
+                  <td style={{ padding: 8 }}>{g.name}</td>
+                  <td style={{ padding: 8 }}>{g.instructor}</td>
+                  <td style={{ padding: 8, textAlign: "right" }}>{g.midterm}%</td>
+                  <td style={{ padding: 8, textAlign: "right" }}>{g.final}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ marginTop: 16, fontWeight: "bold" }}>Overall Score: {overallScore}%</div>
+        </>
+      )}
+    </div>
+  );
+}
+
+
+================================================================================
+================================================================================
+FILE: src/app/student/Courses/page.jsx
+================================================================================
+
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
+
+export default function StudentCoursesPage() {
+  const router = useRouter();
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    const run = async () => {
+      setLoading(true);
+      setErr("");
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
+
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
+      const { data: profile, error: pErr } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (pErr || !profile) {
+        router.replace("/login");
+        return;
+      }
+
+      if (profile.role !== "student") {
+        router.replace("/teacher/Dashboard");
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("enrollments")
+        .select("course_id, courses(code, title)")
+        .eq("student_id", user.id);
+
+      if (error) {
+        setErr(error.message);
+        setCourses([]);
+      } else {
+        setCourses((data || []).map((r) => r.courses).filter(Boolean));
+      }
+
+      setLoading(false);
+    };
+
+    run();
+  }, [router]);
+
+  if (loading) return <div style={{ padding: 24 }}>Loading...</div>;
+
+  return (
+    <div style={{ padding: 24 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <h1 style={{ marginBottom: 12 }}>My Courses</h1>
+      </div>
+      {err && <p style={{ color: "red" }}>{err}</p>}
+      {!courses.length ? (
+        <p>No enrolled courses yet.</p>
+      ) : (
+        <ul>
+          {courses.map((c, idx) => (
+            <li key={idx}><b>{c.code}</b> — {c.title}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+
+================================================================================
+================================================================================
+FILE: src/app/student/Profile/page.jsx
+================================================================================
+
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
+
+const emptyForm = {
+  full_name: "",
+  email: "",
+  student_no: "",
+  company: "",
+  job_title: "",
+  pronoun: "",
+  department: "",
+  mailing_address: "",
+  phone_number: "",
+  business_fax: "",
+  gender: "",
+  education_level: "",
+  additional_name: "",
+  website: "",
+  birthday: "",
+};
+
+function clamp(n, a, b) { return Math.max(a, Math.min(b, n)); }
+function percent(n, total) { if (!total) return 0; return Math.round((n / total) * 100); }
+function bucketFromFinal(finalGrade) {
+  const g = Number(finalGrade);
+  if (!Number.isFinite(g)) return null;
+  if (g >= 95) return "A";
+  if (g >= 90) return "A-";
+  if (g >= 85) return "B+";
+  if (g >= 80) return "B";
+  if (g >= 75) return "C+";
+  if (g >= 60) return "D";
+  return "F";
+}
+function toGpa(avgFinal) {
+  const v = clamp(Number(avgFinal || 0), 0, 100);
+  return Math.round(((v / 100) * 4) * 100) / 100;
+}
+function getExt(fileName) {
+  const parts = String(fileName || "").split(".");
+  const ext = parts.length > 1 ? parts.pop().toLowerCase() : "png";
+  if (ext === "jpeg") return "jpg";
+  return ext || "png";
+}
+
+export default function StudentProfilePage() {
+  const router = useRouter();
+  const fileRef = useRef(null);
+  const [loading, setLoading] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [userId, setUserId] = useState("");
+  const [form, setForm] = useState(emptyForm);
+  const [message, setMessage] = useState("");
+  const [avatarPath, setAvatarPath] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [finalGrades, setFinalGrades] = useState([]);
+
+  const setMsg = (txt) => setMessage(txt || "");
+
+  const handleChange = (key, value) => { setForm((prev) => ({ ...prev, [key]: value })); };
+
+  const refreshAvatarSignedUrl = async (path) => {
+    if (!path) { setAvatarUrl(""); return; }
+    const { data, error } = await supabase.storage.from("avatars").createSignedUrl(path, 60 * 30);
+    if (error) { setMsg(error.message); setAvatarUrl(""); return; }
+    setAvatarUrl(data?.signedUrl || "");
+  };
+
+  useEffect(() => {
+    const load = async () => {
+      setLoading(true);
+      setMsg("");
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
+      if (!user) { router.replace("/login"); return; }
+      setUserId(user.id);
+      const meta = user.user_metadata || {};
+      const { data: profile, error: pErr } = await supabase
+        .from("profiles")
+        .select(["id", "role", "full_name", "email", "student_no", "avatar_path", "program", "year_level", "company", "job_title", "pronoun", "department", "mailing_address", "phone_number", "fax_number"].join(","))
+        .eq("id", user.id)
+        .single();
+      if (pErr) { setMsg(pErr.message); setLoading(false); return; }
+      if (profile?.role === "teacher") { router.replace("/teacher/Dashboard"); return; }
+      setAvatarPath(profile?.avatar_path || "");
+      if (profile?.avatar_path) { await refreshAvatarSignedUrl(profile.avatar_path); } else { setAvatarUrl(""); }
+      setForm({
+        full_name: profile?.full_name || meta.full_name || "Student User",
+        email: profile?.email || user.email || "",
+        student_no: profile?.student_no || meta.student_no || "2024-130839",
+        company: profile?.company || meta.company || "",
+        job_title: profile?.job_title || meta.job_title || "",
+        pronoun: profile?.pronoun || meta.pronoun || "",
+        department: profile?.department || meta.department || "",
+        mailing_address: profile?.mailing_address || meta.mailing_address || "",
+        phone_number: profile?.phone_number || meta.phone_number || "",
+        business_fax: profile?.fax_number || meta.business_fax || "",
+        gender: meta.gender || "",
+        education_level: meta.education_level || "",
+        additional_name: meta.additional_name || "",
+        website: meta.website || "",
+        birthday: meta.birthday || "",
+      });
+      const { data: gradesData } = await supabase.from("grades").select("final_grade").eq("student_id", user.id);
+      const numeric = (gradesData || []).map((x) => Number(x.final_grade)).filter((n) => Number.isFinite(n));
+      setFinalGrades(numeric);
+      setLoading(false);
+    };
+    load();
+  }, [router]);
+
+  const stats = useMemo(() => {
+    const list = finalGrades || [];
+    const count = list.length;
+    const avg = count ? list.reduce((a, b) => a + b, 0) / count : 0;
+    const gpa = toGpa(avg);
+    const buckets = { A: 0, "A-": 0, "B+": 0, B: 0, "C+": 0, D: 0, F: 0 };
+    for (const g of list) { const b = bucketFromFinal(g); if (!b) continue; buckets[b] = (buckets[b] || 0) + 1; }
+    const hasData = count > 0;
+    const dist = { A: percent(buckets.A, count), "A-": percent(buckets["A-"], count), "B+": percent(buckets["B+"], count), B: percent(buckets.B, count), "C+": percent(buckets["C+"], count), D: percent(buckets.D, count), F: percent(buckets.F, count) };
+    const completedUnits = hasData ? count * 3 : 0;
+    const attendance = hasData ? 92 : 0;
+    return { avgFinal: avg, gpa, dist, completedUnits, attendance, hasData };
+  }, [finalGrades]);
+
+  const saveProfile = async () => {
+    if (!userId) return;
+    setSaving(true);
+    setMsg("");
+    const { error: dbErr } = await supabase.from("profiles").update({
+      full_name: (form.full_name || "").trim(),
+      email: (form.email || "").trim(),
+      student_no: (form.student_no || "").trim(),
+      company: form.company || "",
+      job_title: form.job_title || "",
+      pronoun: form.pronoun || "",
+      department: form.department || "",
+      mailing_address: form.mailing_address || "",
+      phone_number: form.phone_number || "",
+      fax_number: form.business_fax || "",
+    }).eq("id", userId);
+    if (dbErr) { setMsg(dbErr.message); setSaving(false); return; }
+    const { error: metaErr } = await supabase.auth.updateUser({
+      data: { gender: form.gender || "", education_level: form.education_level || "", additional_name: form.additional_name || "", website: form.website || "", birthday: form.birthday || "" },
+    });
+    if (metaErr) { setMsg(metaErr.message); setSaving(false); return; }
+    setMsg("Profile saved successfully.");
+    setEditing(false);
+    setSaving(false);
+  };
+
+  const pickAvatar = () => { setMsg(""); if (fileRef.current) fileRef.current.click(); };
+
+  const onAvatarSelected = async (file) => {
+    if (!file || !userId) return;
+    const okTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+    if (!okTypes.includes(file.type)) { setMsg("Please upload a PNG, JPG, or WEBP image."); return; }
+    if (file.size > 2 * 1024 * 1024) { setMsg("Avatar must be 2MB or less."); return; }
+    setAvatarBusy(true);
+    setMsg("");
+    const ext = getExt(file.name);
+    const path = `${userId}/avatar-${Date.now()}.${ext}`;
+    const { error: upErr } = await supabase.storage.from("avatars").upload(path, file, { cacheControl: "3600", upsert: true, contentType: file.type });
+    if (upErr) { setMsg(`Upload failed: ${upErr.message}`); setAvatarBusy(false); return; }
+    const { error: dbErr } = await supabase.from("profiles").update({ avatar_path: path }).eq("id", userId);
+    if (dbErr) { setMsg(`Saving avatar failed: ${dbErr.message}`); setAvatarBusy(false); return; }
+    setAvatarPath(path);
+    await refreshAvatarSignedUrl(path);
+    setMsg("Avatar updated successfully.");
+    setAvatarBusy(false);
+  };
+
+  if (loading) return <div style={{ padding: 24 }}>Loading profile...</div>;
+
+  return (
+    <div style={wrap}>
+      <div style={grid}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={card}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+              <div style={avatarCircle}>
+                {avatarUrl ? <img src={avatarUrl} alt="Avatar" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }} /> : <span style={{ fontSize: 34, opacity: 0.9 }}>👤</span>}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={titleText}>{form.full_name || "Student User"}</div>
+                <div style={subText}>Student ID: {form.student_no || "-"}</div>
+                <div style={subText}>BS Information - 2nd Year</div>
+                <div style={{ marginTop: 8, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                  <button onClick={pickAvatar} disabled={avatarBusy} style={btnWhite}>{avatarBusy ? "Uploading..." : " Change Avatar"}</button>
+                  <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/jpg,image/webp" style={{ display: "none" }} onChange={(e) => onAvatarSelected(e.target.files?.[0])} />
+                  {avatarPath ? <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Saved</span> : null}
+                </div>
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <button onClick={() => { setMsg(""); setEditing((p) => !p); }} style={btnBlue}>{editing ? "Cancel Edit" : "Edit Profile"}</button>
+              </div>
+            </div>
+          </div>
+
+          <Section title="Basic Information" editing={editing}>
+            <Field label="Full Name" value={form.full_name} editing={editing} onChange={(v) => handleChange("full_name", v)} />
+            <Field label="Company" value={form.company} editing={editing} onChange={(v) => handleChange("company", v)} optional />
+            <Field label="Email Address" value={form.email} editing={editing} onChange={(v) => handleChange("email", v)} />
+            <Field label="Job Title" value={form.job_title} editing={editing} onChange={(v) => handleChange("job_title", v)} optional />
+            <Field label="Pronoun" value={form.pronoun} editing={editing} onChange={(v) => handleChange("pronoun", v)} optional />
+            <Field label="Department" value={form.department} editing={editing} onChange={(v) => handleChange("department", v)} optional />
+          </Section>
+
+          <Section title="Contact Information" editing={editing}>
+            <Field label="Mailing Address" value={form.mailing_address} editing={editing} onChange={(v) => handleChange("mailing_address", v)} optional />
+            <Field label="Phone Number" value={form.phone_number} editing={editing} onChange={(v) => handleChange("phone_number", v)} optional />
+            <Field label="Business Fax Number" value={form.business_fax} editing={editing} onChange={(v) => handleChange("business_fax", v)} optional />
+            <div />
+          </Section>
+
+          <Section title="Additional Information" editing={editing}>
+            <Field label="Gender" value={form.gender} editing={editing} onChange={(v) => handleChange("gender", v)} optional />
+            <Field label="Education Level" value={form.education_level} editing={editing} onChange={(v) => handleChange("education_level", v)} optional />
+            <Field label="Additional Name" value={form.additional_name} editing={editing} onChange={(v) => handleChange("additional_name", v)} optional />
+            <Field label="Website" value={form.website} editing={editing} onChange={(v) => handleChange("website", v)} optional />
+            <Field label="Birthday" value={form.birthday} editing={editing} onChange={(v) => handleChange("birthday", v)} optional type="date" />
+            <div />
+          </Section>
+
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 2px", gap: 12 }}>
+            <div style={{ color: message.toLowerCase().includes("success") || message.toLowerCase().includes("updated") ? "#2e7d32" : "#b23a3a", fontWeight: 700, whiteSpace: "pre-wrap", minHeight: 18 }}>{message}</div>
+            {editing && <button onClick={saveProfile} disabled={saving} style={btnBlue}>{saving ? "Saving..." : "Save Profile"}</button>}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={card}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontWeight: 900 }}>Academic Performance</div>
+              <div style={{ opacity: 0.6 }}>•••</div>
+            </div>
+            {(() => { const gpaPercent = clamp(Math.round((stats.gpa / 4) * 100), 0, 100); const isZero = gpaPercent === 0; return (
+              <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 10, marginTop: 10, alignItems: "center" }}>
+                <div style={donutWrap(isZero, gpaPercent)}><div style={donutInner}><div style={{ fontWeight: 900, color: isZero ? "#9ca3af" : "#111827" }}>{stats.gpa.toFixed(2)}</div></div></div>
+                <div>
+                  <div style={{ fontWeight: 900, color: "#111827" }}>Overall GPA</div>
+                  <div style={{ fontSize: 20, fontWeight: 900, marginTop: 3, color: isZero ? "#9ca3af" : "#111827" }}>{stats.gpa.toFixed(2)}</div>
+                  <div style={{ marginTop: 8, height: 6, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}><div style={{ height: "100%", width: `${gpaPercent}%`, background: isZero ? "#d1d5db" : "#22c55e" }} /></div>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, color: "#6b7280", fontSize: 12 }}>
+                    <div>Completed Units<div style={{ fontWeight: 900, color: "#111827" }}>{stats.completedUnits}</div></div>
+                    <div style={{ textAlign: "right" }}>Attendance<div style={{ fontWeight: 900, color: "#111827" }}>{stats.attendance}%</div></div>
+                  </div>
+                  {!stats.hasData && <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>(No grades yet — values will update once grades exist.)</div>}
+                </div>
+              </div>
+            ); })()}
+          </div>
+
+          <div style={card}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontWeight: 900 }}>Grade Distribution</div>
+              <div style={{ opacity: 0.6 }}>•••</div>
+            </div>
+            <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
+              {[["A", stats.dist.A, "#22c55e"], ["A-", stats.dist["A-"], "#34d399"], ["B+", stats.dist["B+"], "#3b82f6"], ["B", stats.dist.B, "#60a5fa"], ["C+", stats.dist["C+"], "#f59e0b"], ["D", stats.dist.D, "#f97316"], ["F", stats.dist.F, "#ef4444"]].map(([label, val, color]) => {
+                const isZero = Number(val) === 0;
+                const barColor = isZero ? "#d1d5db" : color;
+                return (<div key={label} style={{ display: "grid", gridTemplateColumns: "36px 1fr 44px", gap: 10, alignItems: "center" }}><div style={{ fontWeight: 900 }}>{label}</div><div style={{ height: 8, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}><div style={{ height: "100%", width: `${clamp(val, 0, 100)}%`, background: barColor }} /></div><div style={{ textAlign: "right", fontWeight: 900, color: isZero ? "#9ca3af" : "#111827" }}>{val}%</div></div>);
+              })}
+              {!stats.hasData && <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>(No grades yet — distribution will populate once grades exist.)</div>}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Section({ title, children, editing }) { return (<div style={card}><div style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #eef0f3", paddingBottom: 8 }}><div style={{ fontWeight: 900 }}>{title}</div>{editing && <div style={{ marginLeft: "auto", fontSize: 12, color: "#6b7280" }}>Editing</div>}</div><div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>{children}</div></div>); }
+function Field({ label, value, editing, onChange, optional = false, type = "text" }) { return (<div style={fieldBox}><div style={{ fontSize: 12, color: "#6b7280", fontWeight: 800 }}>{label}</div>{editing ? <input type={type} value={value || ""} onChange={(e) => onChange(e.target.value)} placeholder={optional ? "(optional)" : ""} style={input} /> : <div style={{ marginTop: 6, fontWeight: 900, color: value ? "#111827" : "#9ca3af" }}>{value ? value : "(optional)"}</div>}</div>); }
+
+const wrap = { width: "100%" };
+const grid = { display: "grid", gridTemplateColumns: "1fr 320px", gap: 12, alignItems: "start" };
+const card = { background: "#fff", border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, boxShadow: "0 10px 30px rgba(0,0,0,.06)" };
+const titleText = { fontWeight: 900, fontSize: 16, color: "#111827", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
+const subText = { color: "#6b7280", fontWeight: 700, marginTop: 2, fontSize: 12 };
+const avatarCircle = { width: 64, height: 64, borderRadius: "50%", border: "3px solid #111827", display: "grid", placeItems: "center", background: "#fff", overflow: "hidden", flexShrink: 0 };
+const btnBlue = { height: 34, padding: "0 12px", borderRadius: 10, border: "none", background: "#2f6fb3", color: "white", cursor: "pointer", fontWeight: 900, whiteSpace: "nowrap" };
+const btnWhite = { height: 34, padding: "0 12px", borderRadius: 10, border: "1px solid #d1d5db", background: "white", color: "#111827", cursor: "pointer", fontWeight: 900, whiteSpace: "nowrap" };
+const fieldBox = { border: "1px solid #eef0f3", borderRadius: 12, padding: 10, background: "#fff", minHeight: 54 };
+const input = { marginTop: 6, width: "100%", height: 32, borderRadius: 10, border: "1px solid #d1d5db", padding: "0 10px", outline: "none", fontWeight: 800, fontSize: 13 };
+const donutWrap = (isZero, gpaPercent) => { const p = clamp(gpaPercent, 0, 100); if (isZero) return { width: 90, height: 90, borderRadius: "50%", background: "conic-gradient(#d1d5db 0deg 360deg)", display: "grid", placeItems: "center" }; const deg = Math.round((p / 100) * 360); return { width: 90, height: 90, borderRadius: "50%", background: `conic-gradient(#22c55e 0deg ${deg}deg, #e5e7eb ${deg}deg 360deg)`, display: "grid", placeItems: "center" }; };
+const donutInner = { width: 62, height: 62, borderRadius: "50%", background: "white", display: "grid", placeItems: "center", border: "1px solid #e5e7eb" };
+
+
+================================================================================
+================================================================================
+FILE: src/app/student/messages/page.jsx
+================================================================================
+
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
+
+function fmtTime(ts) { try { return new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); } catch { return ""; } }
+function computeFolder(m, userId) { if (m.sender_id === userId) return m.sender_trashed_at ? "trash" : "sent"; return m.recipient_trashed_at ? "trash" : "inbox"; }
+
+export default function StudentMessagesPage() {
+  const router = useRouter();
+  const [folder, setFolder] = useState("inbox");
+  const [search, setSearch] = useState("");
+  const [pageSize, setPageSize] = useState(20);
+  const [composeOpen, setComposeOpen] = useState(false);
+  const [composeTo, setComposeTo] = useState("");
+  const [composeSubject, setComposeSubject] = useState("");
+  const [composeBody, setComposeBody] = useState("");
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [status, setStatus] = useState("");
+  const [userId, setUserId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [messages, setMessages] = useState([]);
+
+  useEffect(() => {
+    let channelA, channelB, alive = true;
+    async function loadMessages(uid) {
+      const { data, error } = await supabase.from("messages").select(`id, created_at, sender_id, recipient_id, subject, body, sender_trashed_at, recipient_trashed_at, recipient_read_at, sender:profiles!messages_sender_id_fkey(full_name,email), recipient:profiles!messages_recipient_id_fkey(full_name,email)`).or(`sender_id.eq.${uid},recipient_id.eq.${uid}`).order("created_at", { ascending: false }).limit(200);
+      if (!alive) return;
+      if (error) { setStatus(error.message); setMessages([]); return; }
+      const mapped = (data || []).map((m) => { const senderName = m.sender?.full_name || m.sender?.email || "Unknown"; const preview = (m.body || "").slice(0, 40); return { ...m, senderName, preview, time: fmtTime(m.created_at), folder: computeFolder(m, uid) }; });
+      setMessages(mapped);
+    }
+    async function boot() {
+      setLoading(true);
+      setStatus("");
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
+      if (!user) { router.replace("/login"); return; }
+      const { data: profile, error: roleErr } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+      if (!alive) return;
+      if (roleErr) { setStatus(roleErr.message || "Unable to verify account role."); setLoading(false); return; }
+      if (!profile || profile.role !== "student") { router.replace("/teacher/Dashboard"); return; }
+      setUserId(user.id);
+      await loadMessages(user.id);
+      channelA = supabase.channel(`messages-sender-${user.id}`).on("postgres_changes", { event: "*", schema: "public", table: "messages", filter: `sender_id=eq.${user.id}` }, () => loadMessages(user.id)).subscribe();
+      channelB = supabase.channel(`messages-recipient-${user.id}`).on("postgres_changes", { event: "*", schema: "public", table: "messages", filter: `recipient_id=eq.${user.id}` }, () => loadMessages(user.id)).subscribe();
+      setLoading(false);
+    }
+    boot();
+    return () => { alive = false; if (channelA) supabase.removeChannel(channelA); if (channelB) supabase.removeChannel(channelB); };
+  }, [router]);
+
+  const visibleMessages = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const filtered = messages.filter((m) => { if (m.folder !== folder) return false; if (!q) return true; return (m.senderName || "").toLowerCase().includes(q) || (m.subject || "").toLowerCase().includes(q) || (m.preview || "").toLowerCase().includes(q); });
+    return filtered.slice(0, pageSize);
+  }, [messages, folder, search, pageSize]);
+
+  const allChecked = visibleMessages.length > 0 && visibleMessages.every((m) => selectedIds.includes(m.id));
+  const toggleSelectAll = () => { if (allChecked) { setSelectedIds((prev) => prev.filter((id) => !visibleMessages.some((m) => m.id === id))); return; } setSelectedIds((prev) => { const next = new Set(prev); visibleMessages.forEach((m) => next.add(m.id)); return [...next]; }); };
+  const toggleRow = (id) => { setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id])); };
+  const moveSelectedToTrash = async () => { if (!selectedIds.length || !userId) return; setStatus("Moving to Trash..."); const { error: e1 } = await supabase.from("messages").update({ sender_trashed_at: new Date().toISOString() }).eq("sender_id", userId).in("id", selectedIds); const { error: e2 } = await supabase.from("messages").update({ recipient_trashed_at: new Date().toISOString() }).eq("recipient_id", userId).in("id", selectedIds); if (e1 || e2) { setStatus((e1 || e2)?.message || "Failed to move messages."); return; } setSelectedIds([]); setStatus("Selected messages moved to Trash."); };
+  const sendMessage = async () => { if (!composeTo.trim()) { setStatus("Please enter recipient email."); return; } if (!userId) { setStatus("Not logged in."); return; } setStatus("Sending..."); const { data: rec, error: recErr } = await supabase.from("profiles").select("id").eq("email", composeTo.trim()).single(); if (recErr || !rec?.id) { setStatus("Recipient not found. Make sure the email exists in profiles."); return; } const { error } = await supabase.from("messages").insert([{ sender_id: userId, recipient_id: rec.id, subject: composeSubject.trim() || "(No Subject)", body: composeBody.trim() }]); if (error) { setStatus(error.message); return; } setComposeTo(""); setComposeSubject(""); setComposeBody(""); setComposeOpen(false); setFolder("sent"); setStatus("Message sent."); };
+
+  if (loading) return <div style={{ padding: 20 }}>Loading...</div>;
+
+  return (
+    <div style={wrap}>
+      <div style={card}>
+        <div style={title}>Message Inbox</div>
+        <div style={topBar}>
+          <button onClick={() => setComposeOpen(true)} style={composeBtn} type="button">COMPOSE</button>
+          <label style={selectAll}><input type="checkbox" checked={allChecked} onChange={toggleSelectAll} /><span style={{ marginLeft: 8 }}>SELECT ALL</span></label>
+          <div style={{ flex: 1 }} />
+          <div style={searchWrap}><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search for.." style={searchInput} /><span style={searchIcon}></span></div>
+          <select value={pageSize} onChange={(e
