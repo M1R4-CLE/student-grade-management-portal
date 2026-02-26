@@ -52,22 +52,11 @@ export default function StudentCoursesPage() {
         style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 14 }}
       />
     ) : (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          borderRadius: 14,
-          background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          color: "#64748b",
-          fontWeight: 800,
-          fontSize: 14,
-        }}
-      >
-        No Cover
-      </div>
+      <img
+        src={getCourseImg(course?.title || "")}
+        alt={course?.title || "Course cover"}
+        style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 14 }}
+      />
     );
 
   useEffect(() => {
