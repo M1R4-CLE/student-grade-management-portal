@@ -1,23 +1,8 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
-
-// Maps course title keywords to local images already in your /public/images folder
-function getCourseImg(title = "") {
-  const t = title.toLowerCase();
-  if (t.includes("data struct") || t.includes("algorithm")) return "/images/dsa.jpg";
-  if (t.includes("database") || t.includes("dbms")) return "/images/dms.jpg";
-  if (t.includes("systems analysis") || t.includes("sad")) return "/images/sad.jpg";
-  if (t.includes("object") || t.includes("oop")) return "/images/oop.jpg";
-  if (t.includes("ethics")) return "/images/ethics.jpg";
-  if (t.includes("quantitative") || t.includes("statistic")) return "/images/qms.jpg";
-  if (t.includes("web")) return "/images/wed.jpg";
-  if (t.includes("human") || t.includes("hci")) return "/images/hci.jpg";
-  if (t.includes("software")) return "/images/soe.jpg";
-  return "/images/dsa.jpg";
-}
 
 export default function StudentDashboardPage() {
   const router = useRouter();
@@ -28,8 +13,17 @@ export default function StudentDashboardPage() {
   const [idx, setIdx] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showLogout, setShowLogout] = useState(false);
+  const [brokenCoverKeys, setBrokenCoverKeys] = useState({});
 
   const MAX_LEN = 20;
+  const toCoverUrl = useCallback(async (path) => {
+    if (!path) return "";
+    const bucket = supabase.storage.from("course-covers");
+    const { data, error } = await bucket.createSignedUrl(path, 1800);
+    if (!error && data?.signedUrl) return data.signedUrl;
+    const { data: publicData } = bucket.getPublicUrl(path);
+    return publicData?.publicUrl || "";
+  }, []);
 
   // ── Load enrolled courses + grades from Supabase ─────────────────────────
   useEffect(() => {
@@ -53,24 +47,73 @@ export default function StudentDashboardPage() {
         return;
       }
 
-      // Fetch enrolled courses with teacher name
-      const { data: enrollData } = await supabase
+      // Fetch enrolled courses with cover_path (same source used by teacher pages)
+      const withCover = await supabase
         .from("enrollments")
-        .select("course_id, courses(id, code, title, profiles!courses_teacher_id_fkey(full_name))")
+        .select("course_id, courses(id, code, title, teacher_id, cover_path)")
         .eq("student_id", user.id);
+
+      let enrollData = withCover.data || [];
+      const missingCoverColumn = String(withCover.error?.message || "")
+        .toLowerCase()
+        .includes("cover_path");
+
+      if (withCover.error && missingCoverColumn) {
+        const basic = await supabase
+          .from("enrollments")
+          .select("course_id, courses(id, code, title, teacher_id)")
+          .eq("student_id", user.id);
+        enrollData = basic.data || [];
+      }
+      if (withCover.error && !missingCoverColumn) {
+        const { data: enrollOnly } = await supabase
+          .from("enrollments")
+          .select("course_id")
+          .eq("student_id", user.id);
+        const ids = [...new Set((enrollOnly || []).map((r) => r.course_id).filter(Boolean))];
+        if (ids.length > 0) {
+          const { data: courseRows } = await supabase
+            .from("courses")
+            .select("id, code, title, teacher_id, cover_path")
+            .in("id", ids);
+          const byId = new Map((courseRows || []).map((c) => [c.id, c]));
+          enrollData = ids.map((id) => ({ course_id: id, courses: byId.get(id) || null }));
+        } else {
+          enrollData = [];
+        }
+      }
 
       if (cancelled) return;
 
-      const mappedCourses = (enrollData || [])
-        .map((r) => r.courses)
-        .filter(Boolean)
-        .map((c) => ({
-          id: c.id,
-          code: c.code,
-          title: c.title,
-          instructor: c.profiles?.full_name || "Instructor",
-          img: getCourseImg(c.title),
-        }));
+      const teacherIds = [
+        ...new Set(
+          (enrollData || [])
+            .map((r) => r?.courses?.teacher_id)
+            .filter(Boolean)
+        ),
+      ];
+      let teacherNameById = new Map();
+
+      if (teacherIds.length > 0) {
+        const { data: teacherRows } = await supabase
+          .from("profiles")
+          .select("id, full_name")
+          .in("id", teacherIds);
+        teacherNameById = new Map((teacherRows || []).map((t) => [t.id, t.full_name || "Instructor"]));
+      }
+
+      const mappedCourses = await Promise.all(
+        (enrollData || [])
+          .map((r) => r.courses)
+          .filter(Boolean)
+          .map(async (c) => ({
+            id: c.id,
+            code: c.code,
+            title: c.title,
+            instructor: teacherNameById.get(c.teacher_id) || "Instructor",
+            img: await toCoverUrl(c.cover_path || ""),
+          }))
+      );
 
       setCourses(mappedCourses);
 
@@ -87,7 +130,7 @@ export default function StudentDashboardPage() {
 
     run();
     return () => { cancelled = true; };
-  }, [router]);
+  }, [router, toCoverUrl]);
 
   // ── Auto-rotate featured carousel every 5 s ───────────────────────────────
   useEffect(() => {
@@ -128,6 +171,32 @@ export default function StudentDashboardPage() {
     await supabase.auth.signOut();
     router.replace("/login");
   };
+  const getCoverKey = (course) => `${course?.id || "no-id"}|${course?.img || ""}`;
+  const markCoverBroken = (course) => {
+    const key = getCoverKey(course);
+    setBrokenCoverKeys((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+  };
+  const renderCourseCover = (course, alt) =>
+    course?.img && !brokenCoverKeys[getCoverKey(course)] ? (
+      <img src={course.img} alt={alt} onError={() => markCoverBroken(course)} />
+    ) : (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)",
+          color: "#64748b",
+          fontWeight: 800,
+          letterSpacing: ".3px",
+          fontSize: 12,
+        }}
+      >
+        No Cover
+      </div>
+    );
 
   if (loading) return <div style={{ padding: 40 }}>Loading dashboard...</div>;
 
@@ -265,7 +334,7 @@ export default function StudentDashboardPage() {
           <div className="featuredWrap">
             {/* Left image */}
             <div className="featuredImg">
-              <img src={item.img} alt={item.title} />
+              {renderCourseCover(item, item.title)}
             </div>
 
             {/* Center text */}
@@ -282,12 +351,10 @@ export default function StudentDashboardPage() {
 
             {/* Right image (next course preview) */}
             <div className="featuredImg">
-              <img
-                src={
-                  featured[(idx + 1) % featured.length]?.img || item.img
-                }
-                alt="next"
-              />
+              {renderCourseCover(
+                featured[(idx + 1) % featured.length] || item,
+                "next"
+              )}
             </div>
           </div>
 
@@ -361,7 +428,7 @@ export default function StudentDashboardPage() {
         ) : (
           filteredCourses.map((c) => (
             <div key={c.id || c.title} className="courseCardImg">
-              <img src={c.img} alt={c.title} />
+              {renderCourseCover(c, c.title)}
               <div className="courseOverlay">
                 <div className="courseOverlayText">
                   <div style={{ fontSize: 11, opacity: 0.8, fontWeight: 700 }}>{c.code}</div>

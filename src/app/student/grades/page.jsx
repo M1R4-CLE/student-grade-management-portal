@@ -4,34 +4,19 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 
-const seedCourses = [
-  { code: "IS 201", title: "Data Structures and Algorithms" },
-  { code: "IS 202", title: "Database Management Systems" },
-  { code: "IS 203", title: "Systems Analysis and Design" },
-  { code: "IS 204", title: "Object-Oriented Programming" },
-  { code: "IS 205", title: "Professional Ethics in IT" },
-  { code: "IS 206", title: "Quantitative Methods / Statistics" },
-  { code: "IS 207", title: "Web Development" },
-  { code: "IS 208", title: "Human-Computer Interaction" },
-  { code: "IS 209", title: "Software Engineering" },
-];
-
 function statusColor(status) {
   const s = String(status || "").toLowerCase();
-  if (s === "present" || s === "submitted" || s === "graded") return { bg: "#dcfce7", text: "#166534" };
+  if (s === "submitted" || s === "graded" || s === "computed") return { bg: "#dcfce7", text: "#166534" };
   if (s === "absent" || s === "missing") return { bg: "#fee2e2", text: "#991b1b" };
   if (s === "upcoming" || s === "pending") return { bg: "#fef3c7", text: "#92400e" };
   return { bg: "#e5e7eb", text: "#374151" };
 }
 
 function formatShortDate(value) {
-  return new Date(value).toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
-}
-
-function shiftIsoDate(days) {
-  const d = new Date();
-  d.setDate(d.getDate() + days);
-  return d.toISOString();
+  if (!value) return "-";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "-";
+  return d.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
 }
 
 export default function GradesPage() {
@@ -61,11 +46,19 @@ export default function GradesPage() {
       }
 
       const [gradesRes, enrollRes] = await Promise.all([
-        supabase
-          .from("grades")
-          .select("prelim, midterm, final_exam, final_grade, courses(code, title)")
-          .eq("student_id", user.id)
-          .order("course_id", { ascending: true }),
+        (async () => {
+          const withTs = await supabase
+            .from("grades")
+            .select("course_id, prelim, midterm, final_exam, final_grade, updated_at, courses(code, title)")
+            .eq("student_id", user.id)
+            .order("course_id", { ascending: true });
+          if (!withTs.error) return withTs;
+          return supabase
+            .from("grades")
+            .select("course_id, prelim, midterm, final_exam, final_grade, courses(code, title)")
+            .eq("student_id", user.id)
+            .order("course_id", { ascending: true });
+        })(),
         supabase
           .from("enrollments")
           .select("course_id, courses(code, title)")
@@ -99,7 +92,7 @@ export default function GradesPage() {
       .map((c) => ({ code: String(c?.code || "").trim(), title: String(c?.title || "").trim() }))
       .filter((x) => x.code);
     const fromClick = clickedCode ? [{ code: clickedCode, title: clickedTitle || clickedCode }] : [];
-    const source = [...seedCourses, ...fromEnroll, ...fromGrades, ...fromClick];
+    const source = [...fromEnroll, ...fromGrades, ...fromClick];
     const seen = new Set();
     return source.filter((x) => {
       const k = x.code.toLowerCase();
@@ -114,62 +107,65 @@ export default function GradesPage() {
       grades.map((g) => [String(g?.courses?.code || "").trim(), g])
     );
 
-    const rows = courseCatalog.flatMap((course, idx) => {
+    const rows = courseCatalog.flatMap((course) => {
       const g = gradeMap.get(course.code);
-      const prelim = Number(g?.prelim ?? 0);
-      const midterm = Number(g?.midterm ?? 0);
-      const finalExam = Number(g?.final_exam ?? 0);
-      const hasFinal = Number(g?.final_grade ?? 0) > 0;
-
-      const att = hasFinal ? "Present" : "Pending";
-      const quiz = prelim > 0 ? "Graded" : "Missing";
-      const activity = midterm > 0 ? "Submitted" : "Pending";
-      const exam = finalExam > 0 ? "Graded" : "Upcoming";
+      const hasPrelim = g?.prelim != null;
+      const hasMidterm = g?.midterm != null;
+      const hasFinalExam = g?.final_exam != null;
+      const rowDate = g?.updated_at || null;
 
       return [
         {
-          date: shiftIsoDate(-4 + (idx % 2)),
+          date: rowDate,
           courseCode: course.code,
           courseTitle: course.title,
-          type: "Attendance",
-          item: "Class Meeting",
-          status: att,
-          score: "-",
-          note: att === "Present" ? "Attendance inferred from graded standing" : "No attendance record yet",
+          type: "Prelim",
+          item: "Prelim Grade",
+          status: hasPrelim ? "Graded" : "Pending",
+          score: hasPrelim ? `${Number(g.prelim).toFixed(2)}%` : "-",
+          note: hasPrelim ? "Score entered by teacher" : "Waiting for teacher entry",
         },
         {
-          date: shiftIsoDate(-3 + (idx % 2)),
+          date: rowDate,
           courseCode: course.code,
           courseTitle: course.title,
-          type: "Quiz",
-          item: "Prelim Quiz",
-          status: quiz,
-          score: quiz === "Graded" ? `${prelim}%` : "-",
-          note: quiz === "Missing" ? "No submission recorded" : "Score posted by teacher",
+          type: "Midterm",
+          item: "Midterm Grade",
+          status: hasMidterm ? "Graded" : "Pending",
+          score: hasMidterm ? `${Number(g.midterm).toFixed(2)}%` : "-",
+          note: hasMidterm ? "Score entered by teacher" : "Waiting for teacher entry",
         },
         {
-          date: shiftIsoDate(-2 + (idx % 2)),
+          date: rowDate,
           courseCode: course.code,
           courseTitle: course.title,
-          type: "Activity",
-          item: "Midterm Activity",
-          status: activity,
-          score: activity === "Submitted" ? `${midterm}%` : "-",
-          note: activity === "Submitted" ? "Submitted before deadline" : "Waiting for submission",
+          type: "Final Exam",
+          item: "Final Exam Grade",
+          status: hasFinalExam ? "Graded" : "Pending",
+          score: hasFinalExam ? `${Number(g.final_exam).toFixed(2)}%` : "-",
+          note: hasFinalExam ? "Score entered by teacher" : "Waiting for teacher entry",
         },
         {
-          date: shiftIsoDate(-1 + (idx % 2)),
+          date: rowDate,
           courseCode: course.code,
           courseTitle: course.title,
-          type: "Exam",
-          item: "Final Exam",
-          status: exam,
-          score: exam === "Graded" ? `${finalExam}%` : "-",
-          note: exam === "Graded" ? "Exam score recorded" : "Scheduled by teacher",
+          type: "Final Grade",
+          item: "Computed Final Grade",
+          status: hasPrelim || hasMidterm || hasFinalExam ? "Computed" : "Pending",
+          score:
+            hasPrelim || hasMidterm || hasFinalExam
+              ? `${(Number(g?.prelim ?? 0) * 0.3 + Number(g?.midterm ?? 0) * 0.3 + Number(g?.final_exam ?? 0) * 0.4).toFixed(2)}%`
+              : "-",
+          note: hasPrelim || hasMidterm || hasFinalExam ? "Based on Grade Entry formula" : "No component grades yet",
         },
       ];
     });
-    return rows.sort((a, b) => new Date(b.date) - new Date(a.date));
+    return rows.sort((a, b) => {
+      const da = a.date ? new Date(a.date).getTime() : 0;
+      const db = b.date ? new Date(b.date).getTime() : 0;
+      if (db !== da) return db - da;
+      return String(a.courseCode).localeCompare(String(b.courseCode));
+    });
   }, [courseCatalog, grades]);
 
   const scopedFeed = useMemo(() => {
@@ -190,19 +186,16 @@ export default function GradesPage() {
   const summary = useMemo(() => {
     const scopedGrades =
       courseFilter === "ALL" ? grades : grades.filter((g) => String(g?.courses?.code || "").trim() === courseFilter);
-    const finals = scopedGrades.map((g) => Number(g?.final_grade ?? 0)).filter((x) => Number.isFinite(x) && x > 0);
+    const finals = scopedGrades
+      .map((g) => Number(g?.prelim ?? 0) * 0.3 + Number(g?.midterm ?? 0) * 0.3 + Number(g?.final_exam ?? 0) * 0.4)
+      .filter((x) => Number.isFinite(x) && x > 0);
     const avgFinal = finals.length ? (finals.reduce((a, b) => a + b, 0) / finals.length).toFixed(2) : "0.00";
+    const componentRows = scopedFeed.filter((x) => x.type !== "Final Grade");
+    const gradedEntries = componentRows.filter((x) => String(x.status).toLowerCase() === "graded").length;
+    const pendingEntries = componentRows.filter((x) => String(x.status).toLowerCase() === "pending").length;
+    const computedFinals = scopedFeed.filter((x) => x.type === "Final Grade" && x.score !== "-").length;
 
-    const attendanceRows = scopedFeed.filter((x) => x.type === "Attendance");
-    const present = attendanceRows.filter((x) => String(x.status).toLowerCase() === "present").length;
-    const attendancePct = attendanceRows.length ? Math.round((present / attendanceRows.length) * 100) : 0;
-    const quizzesDone = scopedFeed.filter((x) => x.type === "Quiz" && String(x.status).toLowerCase() === "graded").length;
-    const missingItems = scopedFeed.filter((x) => {
-      const s = String(x.status).toLowerCase();
-      return s === "missing" || s === "absent";
-    }).length;
-
-    return { avgFinal, attendancePct, quizzesDone, missingItems };
+    return { avgFinal, gradedEntries, pendingEntries, computedFinals };
   }, [grades, scopedFeed, courseFilter]);
 
   if (loading) return <div style={{ padding: 12 }}>Loading...</div>;
@@ -216,7 +209,7 @@ export default function GradesPage() {
           <p style={{ margin: "4px 0 0", color: "#6b7280", fontSize: 13 }}>
             {selectedCourse
               ? `Showing stats for ${selectedCourse.code} - ${selectedCourse.title}`
-              : "Track attendance, quizzes, activities, and exams with date-based status."}
+              : "Track teacher-entered prelim, midterm, and final exam scores."}
           </p>
         </div>
         <div style={{ color: "#4b5563", fontSize: 12 }}>
@@ -237,16 +230,16 @@ export default function GradesPage() {
           <div className="value">{summary.avgFinal}%</div>
         </div>
         <div className="perf-card">
-          <div className="label">Attendance</div>
-          <div className="value">{summary.attendancePct}%</div>
+          <div className="label">Graded Entries</div>
+          <div className="value">{summary.gradedEntries}</div>
         </div>
         <div className="perf-card">
-          <div className="label">Completed Quizzes</div>
-          <div className="value">{summary.quizzesDone}</div>
+          <div className="label">Pending Entries</div>
+          <div className="value">{summary.pendingEntries}</div>
         </div>
         <div className="perf-card">
-          <div className="label">Alerts (Absent/Missing)</div>
-          <div className="value">{summary.missingItems}</div>
+          <div className="label">Computed Finals</div>
+          <div className="value">{summary.computedFinals}</div>
         </div>
       </div>
 
@@ -267,10 +260,10 @@ export default function GradesPage() {
 
             <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="filter-pill">
               <option value="ALL">All Types</option>
-              <option value="Attendance">Attendance</option>
-              <option value="Quiz">Quiz</option>
-              <option value="Activity">Activity</option>
-              <option value="Exam">Exam</option>
+              <option value="Prelim">Prelim</option>
+              <option value="Midterm">Midterm</option>
+              <option value="Final Exam">Final Exam</option>
+              <option value="Final Grade">Final Grade</option>
             </select>
           </div>
         </div>

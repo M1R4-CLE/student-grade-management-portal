@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
@@ -13,8 +13,48 @@ export default function StudentCoursesPage() {
   const [schoolYear, setSchoolYear] = useState("2025-2026 COLLEGE");
   const [page, setPage] = useState(1);
   const [direction, setDirection] = useState(1); // 1 = next, -1 = previous
+  const [brokenCoverKeys, setBrokenCoverKeys] = useState({});
 
   const pageSize = 6;
+  const toCoverUrl = useCallback(async (path) => {
+    if (!path) return "";
+    const bucket = supabase.storage.from("course-covers");
+    const { data, error } = await bucket.createSignedUrl(path, 1800);
+    if (!error && data?.signedUrl) return data.signedUrl;
+    const { data: publicData } = bucket.getPublicUrl(path);
+    return publicData?.publicUrl || "";
+  }, []);
+  const getCoverKey = (course) => `${course?.id || "no-id"}|${course?.img || ""}`;
+  const markCoverBroken = (course) => {
+    const key = getCoverKey(course);
+    setBrokenCoverKeys((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
+  };
+  const renderCourseCover = (course) =>
+    course?.img && !brokenCoverKeys[getCoverKey(course)] ? (
+      <img
+        src={course.img}
+        alt={course?.title || "Course cover"}
+        onError={() => markCoverBroken(course)}
+        style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 14 }}
+      />
+    ) : (
+      <div
+        style={{
+          width: "100%",
+          height: "100%",
+          borderRadius: 14,
+          background: "linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#64748b",
+          fontWeight: 800,
+          fontSize: 14,
+        }}
+      >
+        No Cover
+      </div>
+    );
 
   useEffect(() => {
     const run = async () => {
@@ -45,20 +85,30 @@ export default function StudentCoursesPage() {
         return;
       }
 
-      const { data, error } = await supabase
+      const withCover = await supabase
         .from("enrollments")
-        .select("course_id, courses(code, title)")
+        .select("course_id, courses(id, code, title, cover_path)")
         .eq("student_id", user.id);
 
-      if (error) {
-        setErr(error.message);
+      let data = withCover.data || [];
+      const missingCoverColumn = String(withCover.error?.message || "").toLowerCase().includes("cover_path");
+      if (withCover.error && missingCoverColumn) {
+        const basic = await supabase
+          .from("enrollments")
+          .select("course_id, courses(id, code, title)")
+          .eq("student_id", user.id);
+        data = basic.data || [];
+      } else if (withCover.error) {
+        setErr(withCover.error.message);
         setCourses([]);
-      } else {
+      }
+
+      if (!withCover.error || missingCoverColumn) {
         const fromDb = (data || []).map((r) => r.courses).filter(Boolean);
 
         const seen = new Set();
-        const unique = fromDb.filter((course) => {
-          const key = `${String(course?.code || "").trim().toLowerCase()}|${String(course?.title || "")
+        const uniqueBase = fromDb.filter((course) => {
+          const key = `${String(course?.id || "")}|${String(course?.code || "").trim().toLowerCase()}|${String(course?.title || "")
             .trim()
             .toLowerCase()}`;
           if (!key || seen.has(key)) return false;
@@ -66,14 +116,21 @@ export default function StudentCoursesPage() {
           return true;
         });
 
-        setCourses(unique);
+        const withImages = await Promise.all(
+          uniqueBase.map(async (course) => ({
+            ...course,
+            img: await toCoverUrl(course?.cover_path || ""),
+          }))
+        );
+
+        setCourses(withImages);
       }
 
       setLoading(false);
     };
 
     run();
-  }, [router]);
+  }, [router, toCoverUrl]);
 
   const filteredCourses = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -221,8 +278,11 @@ export default function StudentCoursesPage() {
                       background: "#f0f0f0",
                       border: "1px solid rgba(0,0,0,0.03)",
                       minHeight: 200,
+                      overflow: "hidden",
                     }}
-                  />
+                  >
+                    {renderCourseCover(course)}
+                  </div>
 
                   <div style={{ marginTop: 12, color: "#2f2f2f" }}>
                     <div
