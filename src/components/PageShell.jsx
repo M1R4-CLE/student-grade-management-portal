@@ -15,7 +15,14 @@ export default function PageShell({
   upcoming = [],
 }) {
   // 🔔 realtime notifications + toast popups
-  const { items, lastNew } = useRealtimeNotifications({ limit: 10 });
+  const {
+    items,
+    lastNew,
+    markOneAsRead,
+    markAllAsRead,
+    deleteOne,
+    deleteAllRead,
+  } = useRealtimeNotifications({ limit: 10 });
 
   return (
     <div style={{ padding: 20 }}>
@@ -51,6 +58,10 @@ export default function PageShell({
             studentId={studentId}
             upcoming={upcoming}
             notifications={items}
+            onMarkNotificationRead={markOneAsRead}
+            onMarkAllNotificationsRead={markAllAsRead}
+            onDeleteNotification={deleteOne}
+            onDeleteReadNotifications={deleteAllRead}
           />
         )}
       </div>

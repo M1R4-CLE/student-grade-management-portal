@@ -1,17 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 
 export function useRealtimeNotifications({ limit = 8 } = {}) {
   const [items, setItems] = useState([]);
-  const [unread, setUnread] = useState(0);
   const [ready, setReady] = useState(false);
-
-  // for toast popups
   const [lastNew, setLastNew] = useState(null);
 
   const userIdRef = useRef(null);
+
+  const unread = useMemo(
+    () => (items || []).filter((n) => !n.read_at).length,
+    [items]
+  );
 
   useEffect(() => {
     let channel;
@@ -19,71 +21,64 @@ export function useRealtimeNotifications({ limit = 8 } = {}) {
     async function boot() {
       const { data: userRes } = await supabase.auth.getUser();
       const user = userRes?.user;
-      if (!user) return;
+      if (!user) {
+        setItems([]);
+        setReady(true);
+        return;
+      }
 
       userIdRef.current = user.id;
 
-      // Initial load
       const { data, error } = await supabase
         .from("notifications")
-        .select("id,type,title,body,link,created_at,read_at")
+        .select("id,type,title,body,link,created_at,read_at,user_id")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
         .limit(limit);
 
       if (error) {
         setItems([]);
-        setUnread(0);
         setReady(true);
         return;
       }
 
-      const list = data || [];
-      setItems(list);
-      setUnread(list.filter((n) => !n.read_at).length);
+      setItems(data || []);
       setReady(true);
 
-      // Realtime
       channel = supabase
-        .channel(`notifications-${user.id}`)
+        .channel(`rt-notifications-${user.id}`)
         .on(
           "postgres_changes",
           {
-            event: "INSERT",
+            event: "*",
             schema: "public",
             table: "notifications",
             filter: `user_id=eq.${user.id}`,
           },
           (payload) => {
-            const n = payload.new;
+            if (payload.eventType === "INSERT") {
+              const nextRow = payload.new;
+              setItems((prev) => {
+                const dedup = [nextRow, ...prev.filter((x) => x.id !== nextRow.id)];
+                return dedup.slice(0, limit);
+              });
+              setLastNew(nextRow);
+              return;
+            }
 
-            setItems((prev) => {
-              const next = [n, ...prev].slice(0, limit);
-              setUnread(next.filter((z) => !z.read_at).length);
-              return next;
-            });
+            if (payload.eventType === "UPDATE") {
+              const updated = payload.new;
+              setItems((prev) =>
+                prev.map((x) => (x.id === updated.id ? { ...x, ...updated } : x))
+              );
+              return;
+            }
 
-            // trigger toast
-            setLastNew(n);
-          }
-        )
-        .on(
-          "postgres_changes",
-          {
-            event: "UPDATE",
-            schema: "public",
-            table: "notifications",
-            filter: `user_id=eq.${user.id}`,
-          },
-          (payload) => {
-            const updated = payload.new;
-
-            // ✅ FIX: compute unread from the same "prev" state (no stale closure)
-            setItems((prev) => {
-              const next = prev.map((x) => (x.id === updated.id ? updated : x));
-              setUnread(next.filter((z) => !z.read_at).length);
-              return next;
-            });
+            if (payload.eventType === "DELETE") {
+              const removedId = payload.old?.id;
+              if (!removedId) return;
+              setItems((prev) => prev.filter((x) => x.id !== removedId));
+            }
           }
         )
         .subscribe();
@@ -96,16 +91,84 @@ export function useRealtimeNotifications({ limit = 8 } = {}) {
     };
   }, [limit]);
 
-  const markAllRead = async () => {
-    const user_id = userIdRef.current;
-    if (!user_id) return;
+  const markOneAsRead = async (id) => {
+    const now = new Date().toISOString();
+    const userId = userIdRef.current;
+    if (!userId || !id) return;
 
-    await supabase
+    const { error } = await supabase
       .from("notifications")
-      .update({ read_at: new Date().toISOString() })
-      .eq("user_id", user_id)
-      .is("read_at", null);
+      .update({ read_at: now })
+      .eq("id", id)
+      .eq("user_id", userId);
+
+    if (error) return;
+
+    setItems((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read_at: n.read_at || now } : n))
+    );
   };
 
-  return { items, unread, ready, lastNew, markAllRead };
+  const markAllAsRead = async () => {
+    const now = new Date().toISOString();
+    const userId = userIdRef.current;
+    if (!userId) return;
+
+    const unreadIds = items.filter((n) => !n.read_at).map((n) => n.id);
+    if (!unreadIds.length) return;
+
+    const { error } = await supabase
+      .from("notifications")
+      .update({ read_at: now })
+      .in("id", unreadIds)
+      .eq("user_id", userId);
+
+    if (error) return;
+
+    setItems((prev) => prev.map((n) => ({ ...n, read_at: n.read_at || now })));
+  };
+
+  const deleteOne = async (id) => {
+    const userId = userIdRef.current;
+    if (!userId || !id) return;
+
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("id", id)
+      .eq("user_id", userId);
+
+    if (error) return;
+
+    setItems((prev) => prev.filter((n) => n.id !== id));
+  };
+
+  const deleteAllRead = async () => {
+    const userId = userIdRef.current;
+    if (!userId) return;
+
+    const readIds = items.filter((n) => !!n.read_at).map((n) => n.id);
+    if (!readIds.length) return;
+
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .in("id", readIds)
+      .eq("user_id", userId);
+
+    if (error) return;
+
+    setItems((prev) => prev.filter((n) => !n.read_at));
+  };
+
+  return {
+    items,
+    unread,
+    ready,
+    lastNew,
+    markOneAsRead,
+    markAllAsRead,
+    deleteOne,
+    deleteAllRead,
+  };
 }

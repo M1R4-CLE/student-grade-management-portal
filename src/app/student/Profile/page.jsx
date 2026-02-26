@@ -383,11 +383,9 @@ export default function StudentProfilePage() {
 
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <button
-                  onClick={() => {
-                    setMsg("");
-                    setEditing((p) => !p);
-                  }}
-                  style={btnBlue}
+                  onClick={() => setEditing((v) => !v)}
+                  style={editing ? btnWhite : btnBlue}
+                  type="button"
                 >
                   {editing ? "Cancel Edit" : "Edit Profile"}
                 </button>

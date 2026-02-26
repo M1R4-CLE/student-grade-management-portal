@@ -175,8 +175,12 @@ export default function TeacherProfilePage() {
             </div>
           </div>
 
-          <button onClick={() => { setMsg(""); setEditing(p => !p); }} style={btnBlue}>
-            {editing ? "Cancel" : "Edit Profile"}
+          <button
+            onClick={() => setEditing((v) => !v)}
+            style={editing ? btnWhite : btnBlue}
+            type="button"
+          >
+            {editing ? "Cancel Edit" : "Edit Profile"}
           </button>
         </div>
       </div>

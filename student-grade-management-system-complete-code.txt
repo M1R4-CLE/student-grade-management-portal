@@ -1,0 +1,1340 @@
+================================================================================
+STUDENT GRADE MANAGEMENT SYSTEM - COMPLETE SOURCE CODE
+================================================================================
+
+This file contains all the source code from the Student Grade Management System
+including layouts, global CSS, student pages, teacher pages, authentication 
+pages, and components.
+
+================================================================================
+TABLE OF CONTENTS
+================================================================================
+1. Global Styles (src/app/globals.css)
+2. Root Layout (src/app/layout.jsx)
+3. Student Layout (src/app/student/layout.jsx)
+4. Teacher Layout (src/app/teacher/layout.jsx)
+5. Authentication Pages
+   - Login (src/app/login/page.jsx)
+   - Forgot Password (src/app/forgot-password/page.jsx)
+   - Reset Password (src/app/reset-password/page.jsx)
+6. Student Pages
+   - Dashboard (src/app/student/Dashboard/page.jsx)
+   - Courses (src/app/student/Courses/page.jsx)
+   - Grades (src/app/student/Grades/page.jsx)
+   - Messages (src/app/student/messages/page.jsx)
+   - Profile (src/app/student/Profile/page.jsx)
+7. Teacher Pages
+   - Dashboard (src/app/teacher/Dashboard/page.jsx)
+   - Class Management (src/app/teacher/Class-Management/page.jsx)
+   - Grade Entry (src/app/teacher/Grade-Entry/page.jsx)
+   - Messages (src/app/teacher/messages/page.jsx)
+   - Profile (src/app/teacher/Profile/page.jsx)
+8. Components
+   - AppSidebar (src/components/AppSidebar.jsx)
+   - BrandLogo (src/components/BrandLogo.jsx)
+   - PageShell (src/components/PageShell.jsx)
+   - RightPanel (src/components/RightPanel.jsx)
+   - LogoutButton (src/components/LogoutButton.jsx)
+   - LogoutConfirmModal (src/components/LogoutConfirmModal.jsx)
+   - NotificationsModal (src/components/NotificationsModal.jsx)
+   - AgendaCalendar (src/components/AgendaCalendar.jsx)
+   - useRealtimeNotifications (src/components/useRealtimeNotifications.jsx)
+   - ToastCenter (src/components/ToastCenter.jsx)
+
+================================================================================
+1. GLOBAL STYLES (src/app/globals.css)
+================================================================================
+
+:root {
+  /* Font */
+  --font-main: var(--font-poppins);
+
+  /* Brand Colors */
+  --blue-main: #2f6fb3;
+  --green-main: #57b447;
+  --blue-dark: #1f4e8c;
+  --blue-light: #4a90e2;
+  --gray-brand: #6e6e6e;
+
+  /* Optional UI neutrals */
+  --text: #111827;
+  --muted: #6b7280;
+  --card: rgba(255, 255, 255, 0.75);
+  --border: rgba(0, 0, 0, 0.06);
+
+  /* Sidebar & Card backgrounds */
+  --sidebar-bg: #ffffff;
+  --card-bg: #ffffff;
+  --border-light: rgba(0, 0, 0, 0.08);
+  --radius-lg: 12px;
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+.loginWrap{
+  min-height:100vh;
+  display:grid;
+  place-items:center;
+  background: radial-gradient(circle at top, #ffffff 0%, #e9e9e9 55%, #cfcfcf 100%);
+}
+
+.loginCard{
+  width: 420px;
+  padding: 22px 22px 18px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.70);
+  border: 1px solid rgba(0,0,0,.15);
+  box-shadow: 0 18px 45px rgba(0,0,0,.15);
+  backdrop-filter: blur(8px);
+}
+
+.roleRow{
+  display:flex;
+  justify-content:center;
+  gap: 22px;
+  margin: 10px 0 14px;
+  color:#333;
+}
+
+.roleItem{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  font-weight: 700;
+  letter-spacing: .5px;
+}
+
+.loginForm{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  align-items: center;   
+}
+
+.loginInput{
+  width:85%;
+  max-width:300px;
+  padding:12px 14px;
+  border:1px solid rgba(0,0,0,.15);
+  background:rgba(255,255,255,.65);
+  outline:none;
+  border-radius:10px;
+}
+
+.loginInput:focus{
+  border-color: rgba(47,111,179,.6);
+  box-shadow: 0 0 0 3px rgba(47,111,179,.12);
+}
+
+.loginBtn{
+  width:85%;
+  max-width:300px;
+  padding:12px 14px;
+  border:1px solid rgba(0,0,0,.35);
+  background:rgba(255,255,255,.7);
+  font-weight:800;
+  cursor:pointer;
+  border-radius:10px;
+}
+
+.loginBtn:disabled{
+  opacity:.7;
+  cursor:not-allowed;
+}
+
+.forgotBtn{
+  margin-top: 2px;
+  background: transparent;
+  border: none;
+  color: #444;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.loginError{
+  color: #b91c1c;
+  margin: 0;
+  font-size: 13px;
+}
+
+
+html, body {
+  font-family: var(--font-main), system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+}
+
+body{
+  background:
+    radial-gradient(circle at 50% 0%, rgba(0,0,0,.18), transparent 55%),
+    linear-gradient(180deg, #f7f7f7 0%, #ececec 45%, #f7f7f7 100%);
+}
+
+.glassCard{
+  background: rgba(255,255,255,.78);
+  border: 1px solid rgba(0,0,0,.08);
+  border-radius: 18px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.08);
+  backdrop-filter: blur(10px);
+}
+
+.sectionTitle{
+  font-weight: 800;
+  color: var(--blue-main);
+  margin-top: 14px;
+}
+
+/* Search bar (pill) */
+.searchRow{
+  margin-top: 10px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.searchPill{
+  flex: 1;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(0,0,0,.10);
+  background: rgba(255,255,255,.65);
+}
+
+.searchPill input{
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+  outline: none !important;
+}
+
+.yearPill{
+  width: 170px;
+  border-radius: 999px;
+  padding: 10px 12px;
+}
+
+/* Featured banner */
+.featuredWrap{
+  display:grid;
+  grid-template-columns: 160px 1fr 160px;
+  gap: 14px;
+  align-items: center;
+}
+
+.featuredImg{
+  height: 120px;
+  border-radius: 18px;
+  overflow:hidden;
+  border: 1px solid rgba(0,0,0,.08);
+  position: relative;
+}
+
+.featuredImg img{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+.featuredMid{
+  padding: 14px 16px;
+}
+
+.kicker{
+  font-size: 12px;
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.featuredTitle{
+  font-weight: 900;
+  margin-top: 2px;
+}
+
+.featuredDesc{
+  font-size: 12px;
+  color: #6b7280;
+  margin-top: 6px;
+  line-height: 1.35;
+}
+
+/* Course cards with images */
+.courseGrid{
+  margin-top: 14px;
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.courseCardImg{
+  border-radius: 22px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,.08);
+  background: rgba(255,255,255,.65);
+  box-shadow: 0 10px 20px rgba(0,0,0,.06);
+  height: 170px;
+  position: relative;
+  cursor: pointer;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.courseCardImg:hover{
+  transform: translateY(-4px);
+  box-shadow: 0 18px 32px rgba(47,111,179,.18);
+}
+
+.courseCardImg img{
+  width:100%;
+  height:100%;
+  object-fit: cover;
+  display:block;
+  filter: saturate(1.05);
+}
+
+.courseOverlay{
+  position:absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0,0,0,.00) 35%, rgba(0,0,0,.70) 100%);
+  display:flex;
+  align-items:flex-end;
+}
+
+.courseOverlayText{
+  width:100%;
+  padding: 14px;
+  color: white;
+  font-weight: 900;
+  text-shadow: 0 10px 25px rgba(0,0,0,.45);
+}
+
+================================================================================
+2. ROOT LAYOUT (src/app/layout.jsx)
+================================================================================
+
+import "./globals.css";
+import { Poppins } from "next/font/google";
+
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  variable: "--font-poppins",
+});
+
+
+export const metadata = {
+  title: "Student Grade Management Portal",
+  description: "Student and Teacher Grade Management System",
+};
+
+export default function RootLayout({ children }) {
+  return (
+    <html lang="en">
+      <body className={poppins.className}>
+        {children}
+      </body>
+    </html>
+  );
+}
+
+================================================================================
+3. STUDENT LAYOUT (src/app/student/layout.jsx)
+================================================================================
+
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/app/lib/supabaseClient";
+import PageShell from "@/components/PageShell";
+
+function fmtWhen(dueAt, kind) {
+  const d = new Date(dueAt);
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
+  const type = String(kind || "").toUpperCase();
+  return `${date} - ${type}`;
+}
+
+export default function StudentLayout({ children }) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [fullName, setFullName] = useState("Student");
+  const [studentId, setStudentId] = useState("");
+  const [upcoming, setUpcoming] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      setLoading(true);
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
+
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
+      const { data: profile, error: pErr } = await supabase
+        .from("profiles")
+        .select("full_name, role, student_no")
+        .eq("id", user.id)
+        .single();
+
+      if (pErr || !profile) {
+        router.replace("/login");
+        return;
+      }
+
+      if (profile.role !== "student") {
+        router.replace("/teacher/Dashboard");
+        return;
+      }
+
+      if (cancelled) return;
+
+      setFullName(profile.full_name || "Student");
+      setStudentId(profile.student_no || "");
+
+      const { data: enrolls, error: eErr } = await supabase
+        .from("enrollments")
+        .select("course_id")
+        .eq("student_id", user.id);
+
+      if (cancelled) return;
+
+      if (eErr) {
+        setUpcoming([]);
+        setLoading(false);
+        return;
+      }
+
+      const courseIds = (enrolls || []).map((x) => x.course_id).filter(Boolean);
+
+      if (!courseIds.length) {
+        setUpcoming([]);
+        setLoading(false);
+        return;
+      }
+
+      const nowIso = new Date().toISOString();
+
+      const { data: events, error: evErr } = await supabase
+        .from("course_events")
+        .select("id, kind, title, due_at, courses(code)")
+        .in("course_id", courseIds)
+        .not("due_at", "is", null)
+        .gte("due_at", nowIso)
+        .order("due_at", { ascending: true })
+        .limit(6);
+
+      if (cancelled) return;
+
+      if (evErr) {
+        setUpcoming([]);
+        setLoading(false);
+        return;
+      }
+
+      const mapped = (events || []).map((ev) => {
+        const code = ev.courses?.code ? `${ev.courses.code} - ` : "";
+        return {
+          title: `${code}${ev.title}`,
+          when: fmtWhen(ev.due_at, ev.kind),
+        };
+      });
+
+      setUpcoming(mapped);
+      setLoading(false);
+    };
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  if (loading) return <div style={{ padding: 40 }}>Loading...</div>;
+
+  return (
+    <PageShell role="student" fullName={fullName} studentId={studentId} upcoming={upcoming}>
+      {children}
+    </PageShell>
+  );
+}
+
+================================================================================
+4. TEACHER LAYOUT (src/app/teacher/layout.jsx)
+================================================================================
+
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/app/lib/supabaseClient";
+import PageShell from "@/components/PageShell";
+
+function fmtWhen(dueAt, kind) {
+  const d = new Date(dueAt);
+  const date = d.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
+  const type = String(kind || "").toUpperCase();
+  return `${date} - ${type}`;
+}
+
+export default function TeacherLayout({ children }) {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [fullName, setFullName] = useState("Teacher");
+  const [teacherId, setTeacherId] = useState("");
+  const [upcoming, setUpcoming] = useState([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      setLoading(true);
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
+
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
+
+      const { data: profile, error: pErr } = await supabase
+        .from("profiles")
+        .select("full_name, role")
+        .eq("id", user.id)
+        .single();
+
+      if (pErr || !profile) {
+        router.replace("/login");
+        return;
+      }
+
+      if (profile.role !== "teacher") {
+        router.replace("/student/Dashboard");
+        return;
+      }
+
+      if (cancelled) return;
+
+      setFullName(profile.full_name || "Teacher");
+      setTeacherId(user.id);
+
+      // Load upcoming events for courses this teacher owns
+      const { data: coursesData } = await supabase
+        .from("courses")
+        .select("id")
+        .eq("teacher_id", user.id);
+
+      if (cancelled) return;
+
+      const courseIds = (coursesData || []).map((c) => c.id).filter(Boolean);
+
+      if (courseIds.length) {
+        const nowIso = new Date().toISOString();
+        const { data: events } = await supabase
+          .from("course_events")
+          .select("id, kind, title, due_at, courses(code)")
+          .in("course_id", courseIds)
+          .not("due_at", "is", null)
+          .gte("due_at", nowIso)
+          .order("due_at", { ascending: true })
+          .limit(6);
+
+        if (!cancelled) {
+          const mapped = (events || []).map((ev) => {
+            const code = ev.courses?.code ? `${ev.courses.code} - ` : "";
+            return {
+              title: `${code}${ev.title}`,
+              when: fmtWhen(ev.due_at, ev.kind),
+            };
+          });
+          setUpcoming(mapped);
+        }
+      }
+
+      if (!cancelled) setLoading(false);
+    };
+
+    run();
+    return () => { cancelled = true; };
+  }, [router]);
+
+  if (loading) return <div style={{ padding: 40 }}>Loading...</div>;
+
+  return (
+    <PageShell role="teacher" fullName={fullName} studentId={teacherId} upcoming={upcoming}>
+      {children}
+    </PageShell>
+  );
+}
+
+================================================================================
+5. AUTHENTICATION PAGES
+================================================================================
+
+------------------------------------------------------------------------------
+5a. LOGIN PAGE (src/app/login/page.jsx)
+------------------------------------------------------------------------------
+
+"use client";
+
+import { useState } from "react";
+import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
+import BrandLogo from "@/components/BrandLogo";
+import Link from "next/link";
+
+export default function LoginPage() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const onLogin = async (e) => {
+    e.preventDefault();
+    setErr("");
+    setLoading(true);
+
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      setErr(error.message);
+      setLoading(false);
+      return;
+    }
+
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData?.session?.user;
+
+    if (!user) {
+      setErr("No session created. Try again.");
+      setLoading(false);
+      return;
+    }
+
+    const { data: profile, error: pErr } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
+
+    if (pErr || !profile) {
+      setErr("Profile not found. Ask admin.");
+      setLoading(false);
+      return;
+    }
+
+    router.replace(
+      profile.role === "teacher"
+        ? "/teacher/Dashboard"
+        : "/student/Dashboard"
+    );
+  };
+
+  return (
+    <main
+      className="loginWrap"
+      style={{
+        position: "fixed",
+        inset: 0,
+        width: "100vw",
+        height: "100dvh",
+        margin: 0,
+        padding: 0,
+        overflow: "hidden",
+        backgroundImage: "url('/images/BG.png')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+      }}
+    >
+      <div className="loginCard">
+        <div style={{ display: "scale(0.95)", placeItems: "center" }}>
+          <BrandLogo />
+          <div style={{ marginTop: 10, marginBottom: 10, fontWeight: 700, textAlign: "center" }}>
+            Welcome to Student Grade
+            <br />
+            Management Portal
+          </div>
+        </div>
+
+        <form onSubmit={onLogin} className="loginForm">
+          <input
+            className="loginInput"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="Email address"
+            type="email"
+            required
+          />
+
+          <input
+            className="loginInput"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            type="password"
+            required
+          />
+
+          {err && <p className="loginError">{err}</p>}
+
+          <button className="loginBtn" type="submit" disabled={loading}>
+            {loading ? "LOGGING IN..." : "LOG IN"}
+          </button>
+
+          <Link href="/forgot-password" className="forgotBtn">
+            Forgot Login
+          </Link>
+        </form>
+      </div>
+    </main>
+  );
+}
+
+------------------------------------------------------------------------------
+5b. FORGOT PASSWORD PAGE (src/app/forgot-password/page.jsx)
+------------------------------------------------------------------------------
+
+"use client";
+
+import Link from "next/link";
+
+export default function ForgotPasswordPage() {
+  return (
+    <main className="loginWrap">
+      <div className="loginCard">
+        <h1 style={{ textAlign: "center", marginBottom: 12 }}>
+          Forgot Password
+        </h1>
+
+        <p style={{ textAlign: "center", color: "#6b7280", marginBottom: 20 }}>
+          Password reset via email is not enabled.
+          <br />
+          Please contact the system administrator
+          <br />
+          to reset your account.
+        </p>
+
+        <div className="loginForm">
+          <Link href="/login" className="loginBtn" style={{ textAlign: "center" }}>
+            Back to Login
+          </Link>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+------------------------------------------------------------------------------
+5c. RESET PASSWORD PAGE (src/app/reset-password/page.jsx)
+------------------------------------------------------------------------------
+
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
+
+export default function ResetPasswordPage() {
+  const router = useRouter();
+  const [password, setPassword] = useState("");
+  const [msg, setMsg] = useState("");
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    // When user opens the reset link, Supabase sets a recovery session automatically
+  }, []);
+
+  const updatePassword = async (e) => {
+    e.preventDefault();
+    setErr("");
+    setMsg("");
+
+    const { error } = await supabase.auth.updateUser({ password });
+
+    if (error) return setErr(error.message);
+
+    setMsg("Password updated! Redirecting to login...");
+    setTimeout(() => router.replace("/login"), 800);
+  };
+
+  return (
+    <main style={{ minHeight: "100vh", display: "grid", placeItems: "center" }}>
+      <form
+        onSubmit={updatePassword}
+        style={{
+          width: 360,
+          padding: 20,
+          border: "1px solid #ddd",
+          borderRadius: 10,
+          background: "#fff",
+        }}
+      >
+        <h1 style={{ marginBottom: 12 }}>Reset Password</h1>
+
+        <input
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          placeholder="New password"
+          type="password"
+          style={{ width: "100%", padding: 10, marginBottom: 10 }}
+        />
+
+        {err && <p style={{ color: "red" }}>{err}</p>}
+        {msg && <p style={{ color: "green" }}>{msg}</p>}
+
+        <button type="submit" style={{ width: "100%", padding: 10 }}>
+          Update password
+        </button>
+      </form>
+    </main>
+  );
+}
+
+================================================================================
+6. STUDENT PAGES
+================================================================================
+
+------------------------------------------------------------------------------
+6a. STUDENT DASHBOARD (src/app/student/Dashboard/page.jsx)
+------------------------------------------------------------------------------
+
+"use client";
+
+import React, { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { supabase } from "@/app/lib/supabaseClient";
+
+// Maps course title keywords to local images already in your /public/images folder
+function getCourseImg(title = "") {
+  const t = title.toLowerCase();
+  if (t.includes("data struct") || t.includes("algorithm")) return "/images/dsa.jpg";
+  if (t.includes("database") || t.includes("dbms")) return "/images/dms.jpg";
+  if (t.includes("systems analysis") || t.includes("sad")) return "/images/sad.jpg";
+  if (t.includes("object") || t.includes("oop")) return "/images/oop.jpg";
+  if (t.includes("ethics")) return "/images/ethics.jpg";
+  if (t.includes("quantitative") || t.includes("statistic")) return "/images/qms.jpg";
+  if (t.includes("web")) return "/images/wed.jpg";
+  if (t.includes("human") || t.includes("hci")) return "/images/hci.jpg";
+  if (t.includes("software")) return "/images/soe.jpg";
+  return "/images/dsa.jpg";
+}
+
+export default function StudentDashboardPage() {
+  const router = useRouter();
+
+  const [courses, setCourses] = useState([]);
+  const [grades, setGrades] = useState([]);
+  const [query, setQuery] = useState("");
+  const [idx, setIdx] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [showLogout, setShowLogout] = useState(false);
+
+  const MAX_LEN = 20;
+
+  // Load enrolled courses + grades from Supabase
+  useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      setLoading(true);
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
+      if (!user) { router.replace("/login"); return; }
+
+      const { data: profile } = await supabase
+      .from("profiles")
+      .select("role, full_name")
+      .eq("id", user.id)
+      .single();
+
+      if (!profile || profile.role !== "student") {
+        router.replace("/teacher/Dashboard");
+        return;
+      }
+
+      // Fetch enrolled courses with teacher name
+      const { data: enrollData } = await supabase
+        .from("enrollments")
+        .select("course_id, courses(id, code, title, profiles!courses_teacher_id_fkey(full_name))")
+        .eq("student_id", user.id);
+
+      if (cancelled) return;
+
+      const mappedCourses = (enrollData || [])
+        .map((r) => r.courses)
+        .filter(Boolean)
+        .map((c) => ({
+          id: c.id,
+          code: c.code,
+          title: c.title,
+          instructor: c.profiles?.full_name || "Instructor",
+          img: getCourseImg(c.title),
+        }));
+
+      setCourses(mappedCourses);
+
+      // Fetch grades for this student
+      const { data: gradesData } = await supabase
+        .from("grades")
+        .select("course_id, prelim, midterm, final_exam, final_grade, courses(code, title)")
+        .eq("student_id", user.id);
+
+      if (cancelled) return;
+      setGrades(gradesData || []);
+      setLoading(false);
+    };
+
+    run();
+    return () => { cancelled = true; };
+  }, [router]);
+
+  // Auto-rotate featured carousel every 5 seconds
+  useEffect(() => {
+    if (courses.length < 2) return;
+    const t = setInterval(() => setIdx((p) => (p + 1) % Math.min(courses.length, 3)), 5000);
+    return () => clearInterval(t);
+  }, [courses.length]);
+
+  const featured = courses.slice(0, 3);
+  const item = featured[idx] || null;
+
+  const prev = () => setIdx((p) => (p - 1 + featured.length) % featured.length);
+  const next = () => setIdx((p) => (p + 1) % featured.length);
+
+  // Search filter
+  const handleSearch = (e) => {
+    let v = e.target.value.replace(/[^a-zA-Z0-9\s]/g, "").replace(/\s+/g, " ").trimStart().slice(0, MAX_LEN);
+    setQuery(v);
+  };
+
+  const filteredCourses = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return courses;
+    return courses.filter((c) =>
+      c.title.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)
+    );
+  }, [query, courses]);
+
+  // Overall grade average
+  const overallGrade = useMemo(() => {
+    const valid = grades.filter((g) => g.final_grade != null);
+    if (!valid.length) return null;
+    const avg = valid.reduce((s, g) => s + Number(g.final_grade), 0) / valid.length;
+    return avg.toFixed(2);
+  }, [grades]);
+
+  const confirmLogout = async () => {
+    await supabase.auth.signOut();
+    router.replace("/login");
+  };
+
+  if (loading) return <div style={{ padding: 40 }}>Loading dashboard...</div>;
+
+  return (
+    <>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div style={{ fontWeight: 800 }}>
+          Welcome to your <b>Student Dashboard</b>
+        </div>
+      </div>
+
+      {grades.length > 0 && (
+        <div className="glassCard" style={{ marginTop: 14, padding: 14, display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
+          <div style={{ minWidth: 110 }}>
+            <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px" }}>
+              Overall Average
+            </div>
+            <div style={{ fontSize: 32, fontWeight: 900, color: overallGrade >= 75 ? "#16a34a" : "#dc2626", lineHeight: 1.1, marginTop: 2 }}>
+              {overallGrade}%
+            </div>
+          </div>
+
+          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", flex: 1 }}>
+            {grades.map((g, i) => (
+              <div key={i} style={{ background: "rgba(255,255,255,0.85)", border: "1px solid rgba(0,0,0,0.08)", borderRadius: 12, padding: "8px 12px", minWidth: 120 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#2f6fb3" }}>{g.courses?.code || "N/A"}</div>
+                <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 130 }}>
+                  {g.courses?.title || "Course"}
+                </div>
+                <div style={{ display: "flex", gap: 6, fontSize: 11 }}>
+                  <span>P: <b>{g.prelim ?? "—"}</b></span>
+                  <span>M: <b>{g.midterm ?? "—"}</b></span>
+                  <span>F: <b>{g.final_exam ?? "—"}</b></span>
+                </div>
+                <div style={{ marginTop: 3, fontSize: 13, fontWeight: 900, color: g.final_grade == null ? "#9ca3af" : g.final_grade >= 75 ? "#16a34a" : "#dc2626" }}>
+                  Final: {g.final_grade != null ? `${g.final_grade}%` : "Pending"}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <button onClick={() => router.push("/student/Grades")} style={{ alignSelf: "center", padding: "8px 16px", borderRadius: 10, border: "1px solid rgba(0,0,0,.12)", background: "white", fontWeight: 800, cursor: "pointer", fontSize: 13, whiteSpace: "nowrap" }}>
+            Full Grades →
+          </button>
+        </div>
+      )}
+
+      {item && (
+        <div className="glassCard" style={{ marginTop: 14, padding: 14, position: "relative" }}>
+          {featured.length > 1 && (
+            <button onClick={prev} aria-label="Previous" style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", width: 34, height: 34, borderRadius: 999, border: "1px solid rgba(0,0,0,.12)", background: "rgba(255,255,255,.85)", cursor: "pointer", zIndex: 3, fontSize: 18, lineHeight: 1 }}>‹</button>
+          )}
+          {featured.length > 1 && (
+            <button onClick={next} aria-label="Next" style={{ position: "absolute", right: 10, top: "50%", transform: "translateY(-50%)", width: 34, height: 34, borderRadius: 999, border: "1px solid rgba(0,0,0,.12)", background: "rgba(255,255,255,.85)", cursor: "pointer", zIndex: 3, fontSize: 18, lineHeight: 1 }}>›</button>
+          )}
+
+          <div className="featuredWrap">
+            <div className="featuredImg"><img src={item.img} alt={item.title} /></div>
+            <div className="featuredMid">
+              <div className="kicker">{item.code}</div>
+              <div className="featuredTitle">{item.title}</div>
+              <div className="featuredDesc">Enrolled course — taught by {item.instructor}.</div>
+              <div style={{ marginTop: 10, fontSize: 12, color: "#6b7280" }}>{item.instructor} · Instructor</div>
+            </div>
+            <div className="featuredImg"><img src={featured[(idx + 1) % featured.length]?.img || item.img} alt="next" /></div>
+          </div>
+
+          {featured.length > 1 && (
+            <div style={{ display: "flex", justifyContent: "center", gap: 6, marginTop: 10 }}>
+              {featured.map((_, i) => (
+                <button key={i} onClick={() => setIdx(i)} style={{ width: 8, height: 8, borderRadius: "50%", border: "none", cursor: "pointer", padding: 0, background: i === idx ? "#2f6fb3" : "#d1d5db" }} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="sectionTitle">Browse My Courses</div>
+
+      <div className="searchRow" style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", marginTop: 10 }}>
+        <div className="searchPill" style={{ width: "100%", maxWidth: 420, display: "flex", alignItems: "center" }}>
+          <input value={query} onChange={handleSearch} placeholder="Search course" maxLength={MAX_LEN} style={{ flex: 1 }} />
+          {query.trim() && (
+            <button type="button" onClick={() => setQuery("")} style={{ border: "none", background: "transparent", cursor: "pointer", opacity: 0.7, fontSize: 12, fontWeight: 700, paddingRight: 10, whiteSpace: "nowrap" }}>Clear</button>
+          )}
+        </div>
+        <select className="yearPill" style={{ width: 200 }} defaultValue="2025-2026 COLLEGE">
+          <option>2025-2026 COLLEGE</option>
+        </select>
+      </div>
+
+      <div className="courseGrid">
+        {filteredCourses.length === 0 ? (
+          <div style={{ padding: 16, color: "#6b7280" }}>
+            {courses.length === 0 ? "You are not enrolled in any courses yet." : "No courses match your search."}
+          </div>
+        ) : (
+          filteredCourses.map((c) => (
+            <div key={c.id || c.title} className="courseCardImg">
+              <img src={c.img} alt={c.title} />
+              <div className="courseOverlay">
+                <div className="courseOverlayText">
+                  <div style={{ fontSize: 11, opacity: 0.8, fontWeight: 700 }}>{c.code}</div>
+                  {c.title}
+                </div>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+
+      <div style={{ marginTop: 18, display: "flex", justifyContent: "flex-end", color: "#111827" }}>
+        <button className="ghost" style={{ fontWeight: 800 }} onClick={() => router.push("/student/Courses")}>My Courses →</button>
+      </div>
+
+      {showLogout && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.25)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999 }}>
+          <div style={{ width: 360, background: "white", borderRadius: 12, padding: 20, boxShadow: "0 20px 40px rgba(0,0,0,.2)", position: "relative" }}>
+            <button onClick={() => setShowLogout(false)} style={{ position: "absolute", top: 10, right: 10, border: "none", background: "transparent", cursor: "pointer", fontSize: 16, opacity: 0.8 }} aria-label="Close">✕</button>
+            <div style={{ fontWeight: 800, fontSize: 16, marginBottom: 10 }}>Log out</div>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Are you sure?</div>
+            <div style={{ fontSize: 13, color: "#6b7280", marginBottom: 18 }}>You will no longer be logged in on selected devices.</div>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+              <button onClick={() => setShowLogout(false)} style={{ padding: "8px 14px", borderRadius: 8, border: "1px solid rgba(0,0,0,.15)", background: "white", cursor: "pointer", fontWeight: 700 }}>Cancel</button>
+              <button onClick={confirmLogout} style={{ padding: "8px 14px", borderRadius: 8, border: "none", background: "var(--blue-main)", color: "white", cursor: "pointer", fontWeight: 800 }}>Log out</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+------------------------------------------------------------------------------
+6b. STUDENT COURSES (src/app/student/Courses/page.jsx)
+------------------------------------------------------------------------------
+
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
+
+function getCourseImg(title = "") {
+  const t = title.toLowerCase();
+  if (t.includes("data struct") || t.includes("algorithm")) return "/images/dsa.jpg";
+  if (t.includes("database") || t.includes("dbms")) return "/images/dms.jpg";
+  if (t.includes("systems analysis") || t.includes("sad")) return "/images/sad.jpg";
+  if (t.includes("object") || t.includes("oop")) return "/images/oop.jpg";
+  if (t.includes("ethics")) return "/images/ethics.jpg";
+  if (t.includes("quantitative") || t.includes("statistic")) return "/images/qms.jpg";
+  if (t.includes("web")) return "/images/wed.jpg";
+  if (t.includes("human") || t.includes("hci")) return "/images/hci.jpg";
+  if (t.includes("software")) return "/images/soe.jpg";
+  return "/images/dsa.jpg";
+}
+
+export default function StudentCoursesPage() {
+  const router = useRouter();
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    const run = async () => {
+      setLoading(true);
+      setErr("");
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
+      if (!user) { router.replace("/login"); return; }
+
+      const { data: profile, error: pErr } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (pErr || !profile) { router.replace("/login"); return; }
+      if (profile.role !== "student") { router.replace("/teacher/Dashboard"); return; }
+
+      // Join enrollments → courses → teacher profile
+      const { data, error } = await supabase
+        .from("enrollments")
+        .select("course_id, courses(id, code, title, profiles!courses_teacher_id_fkey(full_name))")
+        .eq("student_id", user.id);
+
+      if (error) {
+        setErr(error.message);
+        setCourses([]);
+      } else {
+        const mapped = (data || [])
+          .map((r) => r.courses)
+          .filter(Boolean)
+          .map((c) => ({
+            id: c.id,
+            code: c.code,
+            title: c.title,
+            instructor: c.profiles?.full_name || "Instructor",
+            img: getCourseImg(c.title),
+          }));
+        setCourses(mapped);
+      }
+
+      setLoading(false);
+    };
+
+    run();
+  }, [router]);
+
+  if (loading) return <div style={{ padding: 24 }}>Loading courses...</div>;
+
+  return (
+    <div style={{ width: "100%" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ fontWeight: 900, fontSize: 20 }}>My Courses</div>
+        <div style={{ fontSize: 13, color: "#6b7280", fontWeight: 700 }}>{courses.length} enrolled course{courses.length !== 1 ? "s" : ""}</div>
+      </div>
+
+      {err && (
+        <div style={{ padding: "10px 14px", borderRadius: 8, background: "#fee2e2", color: "#991b1b", marginBottom: 12, fontWeight: 700, fontSize: 13 }}>{err}</div>
+      )}
+
+      {courses.length === 0 ? (
+        <div className="glassCard" style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>You are not enrolled in any courses yet. Please contact your teacher or administrator.</div>
+      ) : (
+        <div className="courseGrid">
+          {courses.map((c) => (
+            <div key={c.id} style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+              <div className="courseCardImg">
+                <img src={c.img} alt={c.title} />
+                <div className="courseOverlay">
+                  <div className="courseOverlayText">
+                    <div style={{ fontSize: 11, opacity: 0.8, fontWeight: 700 }}>{c.code}</div>
+                    {c.title}
+                  </div>
+                </div>
+              </div>
+              <div style={{ background: "rgba(255,255,255,.85)", border: "1px solid rgba(0,0,0,.07)", borderTop: "none", borderRadius: "0 0 22px 22px", padding: "10px 14px", backdropFilter: "blur(6px)" }}>
+                <div style={{ fontWeight: 800, fontSize: 13, color: "#111827" }}>{c.title}</div>
+                <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>👤 {c.instructor}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+------------------------------------------------------------------------------
+6c. STUDENT GRADES (src/app/student/Grades/page.jsx)
+------------------------------------------------------------------------------
+
+"use client";
+
+import { useEffect, useState } from "react";
+import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
+
+function gradeColor(val) {
+  if (val == null) return "#9ca3af";
+  return Number(val) >= 75 ? "#16a34a" : "#dc2626";
+}
+
+function gradeRemark(val) {
+  if (val == null) return "Pending";
+  const g = Number(val);
+  if (g >= 90) return "Excellent";
+  if (g >= 80) return "Very Good";
+  if (g >= 75) return "Passed";
+  return "Failed";
+}
+
+export default function StudentGradesPage() {
+  const router = useRouter();
+  const [grades, setGrades] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+
+  useEffect(() => {
+    const run = async () => {
+      setLoading(true);
+      setErr("");
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const user = sessionData?.session?.user;
+      if (!user) { router.replace("/login"); return; }
+
+      const { data: profile, error: pErr } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
+      if (pErr || !profile) { router.replace("/login"); return; }
+      if (profile.role !== "student") { router.replace("/teacher/Dashboard"); return; }
+
+      const { data, error } = await supabase
+        .from("grades")
+        .select(`prelim, midterm, final_exam, final_grade, courses!inner(code, title, profiles!courses_teacher_id_fkey(full_name))`)
+        .eq("student_id", user.id);
+
+      if (error) {
+        setErr(error.message);
+        setGrades([]);
+      } else {
+        setGrades(
+          (data || []).map((r) => ({
+            code: r.courses?.code || "N/A",
+            name: r.courses?.title || "N/A",
+            instructor: r.courses?.profiles?.full_name || "N/A",
+            prelim: r.prelim != null ? r.prelim : null,
+            midterm: r.midterm != null ? r.midterm : null,
+            final_exam: r.final_exam != null ? r.final_exam : null,
+            final: r.final_grade != null ? r.final_grade : null,
+          }))
+        );
+      }
+
+      setLoading(false);
+    };
+
+    run();
+  }, [router]);
+
+  const gradesWith = grades.filter((g) => g.final != null);
+  const overallAvg = gradesWith.length > 0 ? (gradesWith.reduce((s, g) => s + Number(g.final), 0) / gradesWith.length).toFixed(2) : null;
+
+  if (loading) return <div style={{ padding: 24 }}>Loading grades...</div>;
+
+  return (
+    <div style={{ width: "100%" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ fontWeight: 900, fontSize: 20 }}>My Gradebook</div>
+        {overallAvg && (
+          <div style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(255,255,255,.85)", border: "1px solid rgba(0,0,0,.08)", borderRadius: 12, padding: "8px 18px" }}>
+            <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 700 }}>Overall Average</span>
+            <span style={{ fontSize: 24, fontWeight: 900, color: gradeColor(overallAvg) }}>{overallAvg}%</span>
+            <span style={{ fontSize: 12, fontWeight: 800, padding: "2px 10px", borderRadius: 999, background: overallAvg >= 75 ? "#dcfce7" : "#fee2e2", color: overallAvg >= 75 ? "#166534" : "#991b1b" }}>{gradeRemark(overallAvg)}</span>
+          </div>
+        )}
+      </div>
+
+      {err && <div style={{ padding: "10px 14px", borderRadius: 8, background: "#fee2e2", color: "#991b1b", marginBottom: 12, fontWeight: 700, fontSize: 13 }}>{err}</div>}
+
+      {grades.length === 0 ? (
+        <div className="glassCard" style={{ padding: 40, textAlign: "center", color: "#6b7280" }}>No grades available yet. Enroll in courses and wait for your teacher to enter grades.</div>
+      ) : (
+        <div className="glassCard" style={{ padding: 16, overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "#f8fafc" }}>
+                <Th>Course Code</Th>
+                <Th>Course Name</Th>
+                <Th>Instructor</Th>
+                <Th center>Prelim (30%)</Th>
+                <Th center>Midterm (30%)</Th>
+                <Th center>Final Exam (40%)</Th>
+                <Th center>Final Grade</Th>
+                <Th center>Remarks</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {grades.map((g, i) => (
+                <tr key={i} style={{ borderBottom: "1px solid #f1f5f9" }}>
+                  <Td><span style={{ fontWeight: 800, color: "var(--blue-main)" }}>{g.code}</span></Td>
+                  <Td>{g.name}</Td>
+                  <Td style={{ color: "#6b7280" }}>{g.instructor}</Td>
+                  <Td center>{g.prelim != null ? `${g.prelim}%` : "—"}</Td>
+                  <Td center>{g.midterm != null ? `${g.midterm}%` : "—"}</Td>
+                  <Td center>{g.final_exam != null ? `${g.final_exam}%` : "—"}</Td>
+                  <Td center><span style={{ fontWeight: 900, fontSize: 15, color: gradeColor(g.final) }}>{g.final != null ? `${g.final}%` : "—"}</span></Td>
+                  <Td center>
+                    <span style={{ display: "inline-block", padding: "3px 10px", borderRadius: 999, fontSize: 11, fontWeight: 800, background: g.final == null ? "#f3f4f6" : g.final >= 75 ? "#dcfce7" : "#fee2e2", color: g.final == null ? "#9ca3af" : g.final >= 75 ? "#166534" : "#991b1b" }}>
+                      {gradeRemark(g.final)}
+                    </span>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div style={{ marginTop: 12, fontSize: 11, color: "#9ca3af" }}>Final Grade = (Prelim × 0.30) + (Midterm × 0.30) + (Final Exam × 0.40). Computed automatically by the system.</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Th({ children, center }) {
+  return <th style={{ padding: "10px 12px", textAlign: center ? "center" : "left", fontWeight: 800, color: "#374151", borderBottom: "2px solid #e5e7eb", whiteSpace: "nowrap", background: "#f8fafc" }}>{children}</th>;
+}
+
+function Td({ children, center, style: extraStyle }) {
+  return <td style={{ padding: "10px 12px", verticalAlign: "middle", textAlign: center ? "center" : "left", ...extraStyle }}>{children}</td>;
+}
+
+================================================================================
+END OF FILE
+================================================================================
