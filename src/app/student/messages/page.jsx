@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 function fmtTime(ts) {
   try {
@@ -13,28 +13,39 @@ function fmtTime(ts) {
 }
 
 function computeFolder(m, userId) {
-  if (m.sender_id === userId) return m.sender_trashed_at ? "trash" : "sent";
+  const isSender = m.sender_id === userId;
+  if (isSender && m.sender_deleted_at) return "hidden";
+  if (!isSender && m.recipient_deleted_at) return "hidden";
+  if (isSender) return m.sender_trashed_at ? "trash" : "sent";
   return m.recipient_trashed_at ? "trash" : "inbox";
 }
 
 export default function StudentMessagesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [folder, setFolder] = useState("inbox");
   const [search, setSearch] = useState("");
   const [pageSize, setPageSize] = useState(20);
 
   const [composeOpen, setComposeOpen] = useState(false);
-  const [composeTo, setComposeTo] = useState("");
+  const [composeRecipientId, setComposeRecipientId] = useState("");
+  const [recipientOptions, setRecipientOptions] = useState([]);
   const [composeSubject, setComposeSubject] = useState("");
   const [composeBody, setComposeBody] = useState("");
+  const [openMsg, setOpenMsg] = useState(null);
 
   const [selectedIds, setSelectedIds] = useState([]);
   const [status, setStatus] = useState("");
+  const [sending, setSending] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [toast, setToast] = useState("");
 
   const [userId, setUserId] = useState("");
+  const [myRole, setMyRole] = useState("");
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState([]);
+  const openId = searchParams.get("open");
 
   useEffect(() => {
     let channelA;
@@ -49,6 +60,7 @@ export default function StudentMessagesPage() {
           id, created_at, sender_id, recipient_id,
           subject, body,
           sender_trashed_at, recipient_trashed_at, recipient_read_at,
+          sender_deleted_at, recipient_deleted_at,
           sender:profiles!messages_sender_id_fkey(full_name,email),
           recipient:profiles!messages_recipient_id_fkey(full_name,email)
         `
@@ -114,6 +126,7 @@ export default function StudentMessagesPage() {
       }
 
       setUserId(user.id);
+      setMyRole(profile.role);
       await loadMessages(user.id);
 
       channelA = supabase
@@ -146,9 +159,129 @@ export default function StudentMessagesPage() {
     };
   }, [router]);
 
+  const loadRecipients = async () => {
+    setRecipientOptions([]);
+    setComposeRecipientId("");
+
+    if (!userId || !myRole) return;
+
+    if (myRole === "teacher") {
+      const { data, error } = await supabase
+        .from("enrollments")
+        .select(`
+          student_id,
+          courses!inner ( teacher_id )
+        `)
+        .eq("courses.teacher_id", userId);
+
+      if (error) {
+        console.error(error);
+        setStatus(error.message);
+        return;
+      }
+
+      const studentIds = [...new Set((data || []).map((r) => r.student_id))];
+      if (studentIds.length === 0) {
+        setRecipientOptions([]);
+        return;
+      }
+
+      const { data: students, error: stuErr } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, role")
+        .in("id", studentIds)
+        .order("full_name", { ascending: true });
+
+      if (stuErr) {
+        console.error(stuErr);
+        setStatus(stuErr.message);
+        return;
+      }
+
+      setRecipientOptions(students || []);
+      return;
+    }
+
+    if (myRole === "student") {
+      const { data, error } = await supabase
+        .from("enrollments")
+        .select(`
+          courses!inner ( teacher_id )
+        `)
+        .eq("student_id", userId);
+
+      if (error) {
+        console.error(error);
+        setStatus(error.message);
+        return;
+      }
+
+      const teacherIds = [...new Set((data || []).map((r) => r.courses.teacher_id))];
+      if (teacherIds.length === 0) {
+        setRecipientOptions([]);
+        return;
+      }
+
+      const { data: teachers, error: tErr } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, role")
+        .in("id", teacherIds)
+        .order("full_name", { ascending: true });
+
+      if (tErr) {
+        console.error(tErr);
+        setStatus(tErr.message);
+        return;
+      }
+
+      setRecipientOptions(teachers || []);
+    }
+  };
+
+  const refreshUnreadCount = async () => {
+    if (!userId) return;
+
+    const { count, error } = await supabase
+      .from("messages")
+      .select("id", { count: "exact", head: true })
+      .eq("recipient_id", userId)
+      .is("recipient_read_at", null)
+      .is("recipient_trashed_at", null);
+
+    if (!error) setUnreadCount(count || 0);
+  };
+
+
+  useEffect(() => {
+    if (!userId) return;
+
+    refreshUnreadCount();
+
+    const channel = supabase
+      .channel("realtime-messages-student")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        async (payload) => {
+          const m = payload.new;
+          if (m.recipient_id === userId) {
+            setToast("New message received!");
+            setTimeout(() => setToast(""), 3000);
+            await refreshUnreadCount();
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
+
   const visibleMessages = useMemo(() => {
     const q = search.trim().toLowerCase();
     const filtered = messages.filter((m) => {
+      if (computeFolder(m, userId) === "hidden") return false;
       if (m.folder !== folder) return false;
       if (!q) return true;
       return (
@@ -202,12 +335,58 @@ export default function StudentMessagesPage() {
     }
 
     setSelectedIds([]);
+    await refreshUnreadCount();
     setStatus("Selected messages moved to Trash.");
   };
 
+  const deleteForeverSelected = async () => {
+    if (!selectedIds.length) return;
+  
+    const ids = [...selectedIds];
+  
+    // remove from UI instantly
+    setMessages((prev) => prev.filter((m) => !ids.includes(m.id)));
+    setSelectedIds([]);
+  
+    for (const id of ids) {
+      const { error } = await supabase.rpc("delete_message_forever", {
+        p_message_id: id,
+      });
+  
+      if (error) {
+        console.error("Delete forever failed:", error);
+        setStatus("Delete forever failed.");
+        setTimeout(() => setStatus(""), 3000);
+      }
+    }
+  
+    setStatus("Deleted forever (only for you).");
+    setTimeout(() => setStatus(""), 3000);
+  }; 
+
+  const replyToMessage = async (msg) => {
+    if (!msg) return;
+
+    await loadRecipients();
+
+    const originalSubject = msg.subject?.trim() || "(No Subject)";
+    const subject = originalSubject.toLowerCase().startsWith("re:")
+      ? originalSubject
+      : `Re: ${originalSubject}`;
+
+    setComposeRecipientId(msg.sender_id);
+    setComposeSubject(subject);
+    setComposeBody("");
+    setComposeOpen(true);
+  };
+
   const sendMessage = async () => {
-    if (!composeTo.trim()) {
-      setStatus("Please enter recipient email.");
+    if (sending) return;
+
+    console.log("sendMessage fired", new Date().toISOString());
+
+    if (!composeRecipientId) {
+      setStatus("Please select a recipient.");
       return;
     }
     if (!userId) {
@@ -215,50 +394,125 @@ export default function StudentMessagesPage() {
       return;
     }
 
-    setStatus("Sending...");
-
-    const { data: rec, error: recErr } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("email", composeTo.trim())
-      .single();
-
-    if (recErr || !rec?.id) {
-      setStatus("Recipient not found. Make sure the email exists in profiles.");
+    const { data: authData } = await supabase.auth.getUser();
+    const senderId = authData?.user?.id;
+    if (!senderId) {
+      setStatus("Not logged in.");
       return;
     }
 
-    const { error } = await supabase.from("messages").insert([
+    if (senderId !== userId) setUserId(senderId);
+
+    setSending(true);
+    setStatus("Sending...");
+
+    const { data: msg, error } = await supabase.from("messages").insert([
       {
-        sender_id: userId,
-        recipient_id: rec.id,
+        sender_id: senderId,
+        recipient_id: composeRecipientId,
         subject: composeSubject.trim() || "(No Subject)",
         body: composeBody.trim(),
       },
-    ]);
+    ]).select("id").single();
 
     if (error) {
       setStatus(error.message);
+      setSending(false);
       return;
     }
 
-    setComposeTo("");
+    if (msg?.id) {
+      const recipient = recipientOptions.find((p) => p.id === composeRecipientId);
+      const recipientRole = recipient?.role;
+      const notifLink =
+        recipientRole === "teacher"
+          ? `/teacher/messages?open=${msg.id}`
+          : `/student/messages?open=${msg.id}`;
+
+      await supabase.from("notifications").insert({
+        user_id: composeRecipientId,
+        type: "message",
+        title: "New message",
+        body: composeSubject.trim() || "(No Subject)",
+        link: notifLink,
+      });
+    }
+
+    setComposeRecipientId("");
     setComposeSubject("");
     setComposeBody("");
     setComposeOpen(false);
     setFolder("sent");
     setStatus("Message sent.");
+    setSending(false);
   };
+
+  const markAsRead = async (msgId) => {
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from("messages")
+      .update({ recipient_read_at: now })
+      .eq("id", msgId);
+    if (error) {
+      console.error(error);
+      return;
+    }
+    setMessages((prev) =>
+      prev.map((x) => (x.id === msgId ? { ...x, recipient_read_at: now } : x))
+    );
+    setOpenMsg((prev) => (prev?.id === msgId ? { ...prev, recipient_read_at: now } : prev));
+    await refreshUnreadCount();
+  };
+
+  useEffect(() => {
+    const openFromQuery = async () => {
+      if (!openId || !userId) return;
+
+      const { data, error } = await supabase
+        .from("messages")
+        .select(
+          `
+          id, created_at, sender_id, recipient_id,
+          subject, body,
+          sender_trashed_at, recipient_trashed_at, recipient_read_at,
+          sender_deleted_at, recipient_deleted_at,
+          sender:profiles!messages_sender_id_fkey(full_name,email),
+          recipient:profiles!messages_recipient_id_fkey(full_name,email)
+        `
+        )
+        .eq("id", openId)
+        .single();
+
+      if (error || !data) return;
+
+      setOpenMsg(data);
+      if (data.recipient_id === userId && !data.recipient_read_at) {
+        await markAsRead(data.id);
+      }
+    };
+
+    openFromQuery();
+  }, [openId, userId]);
 
   if (loading) return <div style={{ padding: 20 }}>Loading...</div>;
 
   return (
     <div style={wrap}>
+      {toast && <div style={toastStyle}>{toast}</div>}
       <div style={card}>
         <div style={title}>Message Inbox</div>
 
         <div style={topBar}>
-          <button onClick={() => setComposeOpen(true)} style={composeBtn} type="button">
+          <button
+            onClick={async () => {
+              setComposeSubject("");
+              setComposeBody("");
+              setComposeOpen(true);
+              await loadRecipients();
+            }}
+            style={composeBtn}
+            type="button"
+          >
             COMPOSE
           </button>
 
@@ -288,7 +542,16 @@ export default function StudentMessagesPage() {
 
         <div style={bodyGrid}>
           <div style={folders}>
-            <Folder label="Messages inbox" active={folder === "inbox"} onClick={() => setFolder("inbox")} />
+            <Folder
+              label={
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
+                  <span>Inbox</span>
+                  {unreadCount > 0 && <span style={badgeStyle}>{unreadCount}</span>}
+                </div>
+              }
+              active={folder === "inbox"}
+              onClick={() => setFolder("inbox")}
+            />
             <Folder label="Sent" active={folder === "sent"} onClick={() => setFolder("sent")} />
             <Folder label="Trash" active={folder === "trash"} onClick={() => setFolder("trash")} />
           </div>
@@ -300,9 +563,23 @@ export default function StudentMessagesPage() {
               <div style={empty}>No messages in this folder.</div>
             ) : (
               visibleMessages.map((m) => (
-                <div key={m.id} style={row}>
+                <div
+                  key={m.id}
+                  style={{ ...row, cursor: "pointer" }}
+                  onClick={async () => {
+                    setOpenMsg(m);
+                    if (m.recipient_id === userId && !m.recipient_read_at) {
+                      await markAsRead(m.id);
+                    }
+                  }}
+                >
                   <div style={{ textAlign: "center" }}>
-                    <input type="checkbox" checked={selectedIds.includes(m.id)} onChange={() => toggleRow(m.id)} />
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(m.id)}
+                      onChange={() => toggleRow(m.id)}
+                      onClick={(e) => e.stopPropagation()}
+                    />
                   </div>
 
                   <div style={sender}>{m.senderName}</div>
@@ -318,9 +595,15 @@ export default function StudentMessagesPage() {
             )}
 
             <div style={footerBar}>
-              <button onClick={moveSelectedToTrash} style={trashBtn} type="button">
-                Move selected to Trash
-              </button>
+              {folder === "trash" ? (
+                <button onClick={deleteForeverSelected} style={trashBtn} type="button" disabled={!selectedIds.length}>
+                  Delete Forever
+                </button>
+              ) : (
+                <button onClick={moveSelectedToTrash} style={trashBtn} type="button" disabled={!selectedIds.length}>
+                  Move selected to Trash
+                </button>
+              )}
               <div style={shown}>{visibleMessages.length} shown</div>
             </div>
 
@@ -334,19 +617,23 @@ export default function StudentMessagesPage() {
           <div onClick={(e) => e.stopPropagation()} style={modalCard}>
             <div style={modalHeader}>
               <span>Compose</span>
-              <button onClick={() => setComposeOpen(false)} style={modalClose} type="button">
-                ×
-              </button>
+              <button onClick={() => setComposeOpen(false)} style={modalClose} type="button">x</button>
             </div>
 
             <div style={{ padding: 12 }}>
               <div style={label}>To</div>
-              <input
-                value={composeTo}
-                onChange={(e) => setComposeTo(e.target.value)}
-                placeholder="Start typing an email.."
+              <select
+                value={composeRecipientId}
+                onChange={(e) => setComposeRecipientId(e.target.value)}
                 style={composeInput}
-              />
+              >
+                  <option value="">Select recipient...</option>
+                  {recipientOptions.map((p) => (
+                    <option key={p.id} value={p.id}>
+                      {p.full_name || "(No name)"} ({p.email})
+                    </option>
+                  ))}
+                </select>
 
               <input
                 value={composeSubject}
@@ -363,13 +650,48 @@ export default function StudentMessagesPage() {
               />
 
               <div style={modalBtns}>
-                <button onClick={sendMessage} style={sendBtn} type="button">
-                  Send
+                <button onClick={sendMessage} style={sendBtn} type="button" disabled={sending}>
+                  {sending ? "Sending..." : "Send"}
                 </button>
                 <button onClick={() => setComposeOpen(false)} style={cancelBtn} type="button">
                   Cancel
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {openMsg && (
+        <div style={modalBackdrop}>
+          <div style={openModalCard}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <h3 style={{ margin: 0 }}>Message</h3>
+              <button onClick={() => setOpenMsg(null)} style={closeBtn} type="button">X</button>
+            </div>
+
+            <div style={{ marginTop: 10 }}>
+              <div><b>Subject:</b> {openMsg.subject || "(No Subject)"}</div>
+              <div><b>From:</b> {openMsg.sender?.full_name || openMsg.sender?.email || openMsg.sender_id}</div>
+              <div><b>To:</b> {openMsg.recipient?.full_name || openMsg.recipient?.email || openMsg.recipient_id}</div>
+            </div>
+
+            <div style={messageBodyBox}>
+              {openMsg.body || ""}
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
+              <button
+                onClick={async () => {
+                  await replyToMessage(openMsg);
+                  setOpenMsg(null);
+                }}
+                style={sendBtn}
+                type="button"
+              >
+                Reply
+              </button>
+              <button onClick={() => setOpenMsg(null)} style={btnSecondary} type="button">Close</button>
             </div>
           </div>
         </div>

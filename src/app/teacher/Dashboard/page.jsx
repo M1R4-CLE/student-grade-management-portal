@@ -288,7 +288,7 @@ export default function TeacherDashboardPage() {
             disabled={page === totalPages}
             style={pageBtn}
           >
-            Next
+            Next →
           </button>
         </div>
       )}

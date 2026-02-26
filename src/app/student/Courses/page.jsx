@@ -4,6 +4,20 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
+function getCourseImg(title = "") {
+  const t = title.toLowerCase();
+  if (t.includes("data struct") || t.includes("algorithm")) return "/images/dsa.jpg";
+  if (t.includes("database") || t.includes("dbms")) return "/images/dms.jpg";
+  if (t.includes("systems analysis") || t.includes("sad")) return "/images/sad.jpg";
+  if (t.includes("object") || t.includes("oop")) return "/images/oop.jpg";
+  if (t.includes("ethics")) return "/images/ethics.jpg";
+  if (t.includes("quantitative") || t.includes("statistic")) return "/images/qms.jpg";
+  if (t.includes("web")) return "/images/wed.jpg";
+  if (t.includes("human") || t.includes("hci")) return "/images/hci.jpg";
+  if (t.includes("software")) return "/images/soe.jpg";
+  return "/images/dsa.jpg";
+}
+
 export default function StudentCoursesPage() {
   const router = useRouter();
   const [courses, setCourses] = useState([]);
@@ -63,11 +77,7 @@ export default function StudentCoursesPage() {
 
       const { data: sessionData } = await supabase.auth.getSession();
       const user = sessionData?.session?.user;
-
-      if (!user) {
-        router.replace("/login");
-        return;
-      }
+      if (!user) { router.replace("/login"); return; }
 
       const { data: profile, error: pErr } = await supabase
         .from("profiles")
@@ -75,15 +85,8 @@ export default function StudentCoursesPage() {
         .eq("id", user.id)
         .single();
 
-      if (pErr || !profile) {
-        router.replace("/login");
-        return;
-      }
-
-      if (profile.role !== "student") {
-        router.replace("/teacher/Dashboard");
-        return;
-      }
+      if (pErr || !profile) { router.replace("/login"); return; }
+      if (profile.role !== "student") { router.replace("/teacher/Dashboard"); return; }
 
       const withCover = await supabase
         .from("enrollments")
@@ -170,7 +173,7 @@ export default function StudentCoursesPage() {
     setPage((prev) => Math.min(totalPages, prev + 1));
   };
 
-  if (loading) return <div style={{ padding: 24 }}>Loading...</div>;
+  if (loading) return <div style={{ padding: 24 }}>Loading courses...</div>;
 
   return (
     <div style={{ minHeight: "100%", display: "flex", flexDirection: "column" }}>

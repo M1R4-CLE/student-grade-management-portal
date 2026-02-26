@@ -4,6 +4,10 @@
 // FILE: src/app/teacher/Profile/page.jsx
 // ============================================================
 
+// ============================================================
+// FILE: src/app/teacher/Profile/page.jsx
+// ============================================================
+
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { useRouter } from "next/navigation";
