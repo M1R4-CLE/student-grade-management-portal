@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
 
 function fmtDate(d) {
   try {
@@ -11,7 +11,16 @@ function fmtDate(d) {
   }
 }
 
-export default function NotificationsModal({ open, onClose, items = [] }) {
+export default function NotificationsModal({
+  open,
+  onClose,
+  items = [],
+  onMarkOneRead,
+  onMarkAllRead,
+  onDeleteOne,
+  onDeleteAllRead,
+}) {
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
 
   const unreadCount = useMemo(
@@ -21,31 +30,35 @@ export default function NotificationsModal({ open, onClose, items = [] }) {
 
   if (!open) return null;
 
-  const markAllRead = async () => {
-    setBusy(true);
-    const { data: userRes } = await supabase.auth.getUser();
-    const user = userRes?.user;
-    if (!user) {
-      setBusy(false);
+  const handleOpenNotif = async (n) => {
+    if (!n) return;
+
+    if (!n.read_at) await onMarkOneRead?.(n.id);
+
+    if (n.type === "message") {
+      let openId = null;
+
+      if (typeof n.link === "string" && n.link.includes("?")) {
+        try {
+          const qs = n.link.split("?")[1];
+          openId = new URLSearchParams(qs).get("open");
+        } catch {}
+      }
+
+      const path = window.location.pathname;
+      const base = path.startsWith("/teacher")
+        ? "/teacher/messages"
+        : path.startsWith("/student")
+        ? "/student/messages"
+        : "/student/messages";
+
+      router.push(openId ? `${base}?open=${openId}` : base);
+      onClose?.();
       return;
     }
 
-    // mark all unread as read
-    await supabase
-      .from("notifications")
-      .update({ read_at: new Date().toISOString() })
-      .eq("user_id", user.id)
-      .is("read_at", null);
-
-    setBusy(false);
-  };
-
-  const markOneRead = async (id) => {
-    await supabase
-      .from("notifications")
-      .update({ read_at: new Date().toISOString() })
-      .eq("id", id)
-      .is("read_at", null);
+    if (n.link) router.push(n.link);
+    onClose?.();
   };
 
   return (
@@ -92,14 +105,19 @@ export default function NotificationsModal({ open, onClose, items = [] }) {
               cursor: "pointer",
               fontSize: 18,
             }}
+            type="button"
           >
-            ✕
+            x
           </button>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 10 }}>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 10 }}>
           <button
-            onClick={markAllRead}
+            onClick={async () => {
+              setBusy(true);
+              await onMarkAllRead?.();
+              setBusy(false);
+            }}
             disabled={busy || unreadCount === 0}
             style={{
               padding: "8px 12px",
@@ -109,8 +127,29 @@ export default function NotificationsModal({ open, onClose, items = [] }) {
               cursor: unreadCount === 0 ? "not-allowed" : "pointer",
               fontWeight: 800,
             }}
+            type="button"
           >
             {busy ? "Marking..." : "Mark all as read"}
+          </button>
+          <button
+            onClick={async () => {
+              setBusy(true);
+              await onDeleteAllRead?.();
+              setBusy(false);
+            }}
+            disabled={busy}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 999,
+              border: "1px solid rgba(220,38,38,.25)",
+              background: "#fff5f5",
+              color: "#b91c1c",
+              cursor: "pointer",
+              fontWeight: 800,
+            }}
+            type="button"
+          >
+            Delete read
           </button>
         </div>
 
@@ -120,9 +159,17 @@ export default function NotificationsModal({ open, onClose, items = [] }) {
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {items.map((n) => (
-                <button
+                <div
                   key={n.id}
-                  onClick={() => markOneRead(n.id)}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => handleOpenNotif(n)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleOpenNotif(n);
+                    }
+                  }}
                   style={{
                     textAlign: "left",
                     width: "100%",
@@ -133,16 +180,40 @@ export default function NotificationsModal({ open, onClose, items = [] }) {
                     cursor: "pointer",
                   }}
                 >
-                  <div style={{ fontWeight: 900 }}>{n.title}</div>
-                  {n.body && (
-                    <div style={{ color: "#374151", fontSize: 13, marginTop: 4 }}>
-                      {n.body}
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontWeight: 900 }}>{n.title}</div>
+                      {n.body && (
+                        <div style={{ color: "#374151", fontSize: 13, marginTop: 4 }}>
+                          {n.body}
+                        </div>
+                      )}
+                      <div style={{ color: "#6b7280", fontSize: 12, marginTop: 6 }}>
+                        {fmtDate(n.created_at)} {n.read_at ? "- Read" : "- Unread"}
+                      </div>
                     </div>
-                  )}
-                  <div style={{ color: "#6b7280", fontSize: 12, marginTop: 6 }}>
-                    {fmtDate(n.created_at)} {n.read_at ? "• Read" : "• Unread"}
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        await onDeleteOne?.(n.id);
+                      }}
+                      style={{
+                        alignSelf: "flex-start",
+                        border: "1px solid rgba(220,38,38,.25)",
+                        background: "#fff5f5",
+                        color: "#b91c1c",
+                        borderRadius: 8,
+                        padding: "6px 8px",
+                        cursor: "pointer",
+                        fontSize: 12,
+                        fontWeight: 700,
+                      }}
+                      type="button"
+                    >
+                      Delete
+                    </button>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}

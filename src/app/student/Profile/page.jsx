@@ -9,7 +9,6 @@ const emptyForm = {
   email: "",
   student_no: "",
 
-  // these now come from public.profiles (because you added columns)
   company: "",
   job_title: "",
   pronoun: "",
@@ -17,9 +16,8 @@ const emptyForm = {
 
   mailing_address: "",
   phone_number: "",
-  business_fax: "", // UI name; maps to profiles.fax_number
+  business_fax: "",
 
-  // these are still stored in auth.user_metadata (unless you add DB columns)
   gender: "",
   education_level: "",
   additional_name: "",
@@ -36,9 +34,9 @@ function percent(n, total) {
   return Math.round((n / total) * 100);
 }
 
-// simple grade -> bucket
 function bucketFromFinal(finalGrade) {
-  const g = Number(finalGrade ?? 0);
+  const g = Number(finalGrade);
+  if (!Number.isFinite(g)) return null;
   if (g >= 95) return "A";
   if (g >= 90) return "A-";
   if (g >= 85) return "B+";
@@ -48,10 +46,8 @@ function bucketFromFinal(finalGrade) {
   return "F";
 }
 
-// very simple “GPA-like” mapping (UI only; adjust to your school’s rule)
 function toGpa(avgFinal) {
   const v = clamp(Number(avgFinal || 0), 0, 100);
-  // 0..100 => 0..4
   return Math.round(((v / 100) * 4) * 100) / 100;
 }
 
@@ -79,7 +75,7 @@ export default function StudentProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [avatarBusy, setAvatarBusy] = useState(false);
 
-  // For right-side cards (computed from grades if available)
+  // For right-side cards
   const [finalGrades, setFinalGrades] = useState([]);
 
   const setMsg = (txt) => setMessage(txt || "");
@@ -94,17 +90,12 @@ export default function StudentProfilePage() {
       return;
     }
 
-    // bucket should be private -> use signed url
-    const { data, error } = await supabase.storage
-      .from("avatars")
-      .createSignedUrl(path, 60 * 30); // 30 mins
-
+    const { data, error } = await supabase.storage.from("avatars").createSignedUrl(path, 60 * 30);
     if (error) {
       setMsg(error.message);
       setAvatarUrl("");
       return;
     }
-
     setAvatarUrl(data?.signedUrl || "");
   };
 
@@ -194,7 +185,12 @@ export default function StudentProfilePage() {
         .select("final_grade")
         .eq("student_id", user.id);
 
-      setFinalGrades((gradesData || []).map((x) => Number(x.final_grade ?? 0)));
+      // IMPORTANT: keep only valid numeric grades
+      const numeric = (gradesData || [])
+        .map((x) => Number(x.final_grade))
+        .filter((n) => Number.isFinite(n));
+
+      setFinalGrades(numeric);
 
       setLoading(false);
     };
@@ -205,30 +201,33 @@ export default function StudentProfilePage() {
   const stats = useMemo(() => {
     const list = finalGrades || [];
     const count = list.length;
+
     const avg = count ? list.reduce((a, b) => a + b, 0) / count : 0;
     const gpa = toGpa(avg);
 
     const buckets = { A: 0, "A-": 0, "B+": 0, B: 0, "C+": 0, D: 0, F: 0 };
-    list.forEach((g) => {
+
+    for (const g of list) {
       const b = bucketFromFinal(g);
+      if (!b) continue;
       buckets[b] = (buckets[b] || 0) + 1;
-    });
+    }
 
     const hasData = count > 0;
-    const dist = hasData
-      ? {
-          A: percent(buckets.A, count),
-          "A-": percent(buckets["A-"], count),
-          "B+": percent(buckets["B+"], count),
-          B: percent(buckets.B, count),
-          "C+": percent(buckets["C+"], count),
-          D: percent(buckets.D, count),
-          F: percent(buckets.F, count),
-        }
-      : { A: 47, "A-": 28, "B+": 17, B: 7, "C+": 0, D: 0, F: 0 };
 
-    const completedUnits = hasData ? count * 3 : 23;
-    const attendance = 92;
+    // âœ… If no grades, everything stays ZERO so it greys out.
+    const dist = {
+      A: percent(buckets.A, count),
+      "A-": percent(buckets["A-"], count),
+      "B+": percent(buckets["B+"], count),
+      B: percent(buckets.B, count),
+      "C+": percent(buckets["C+"], count),
+      D: percent(buckets.D, count),
+      F: percent(buckets.F, count),
+    };
+
+    const completedUnits = hasData ? count * 3 : 0;
+    const attendance = hasData ? 92 : 0; // adjust or set null if you add attendance later
 
     return { avgFinal: avg, gpa, dist, completedUnits, attendance, hasData };
   }, [finalGrades]);
@@ -320,10 +319,7 @@ export default function StudentProfilePage() {
       return;
     }
 
-    const { error: dbErr } = await supabase
-      .from("profiles")
-      .update({ avatar_path: path })
-      .eq("id", userId);
+    const { error: dbErr } = await supabase.from("profiles").update({ avatar_path: path }).eq("id", userId);
 
     if (dbErr) {
       setMsg(`Saving avatar failed: ${dbErr.message}`);
@@ -358,7 +354,7 @@ export default function StudentProfilePage() {
                     style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
                   />
                 ) : (
-                  <span style={{ fontSize: 34, opacity: 0.9 }}>👤</span>
+                  <span style={{ fontSize: 34, opacity: 0.9 }}>ðŸ‘¤</span>
                 )}
               </div>
 
@@ -381,21 +377,17 @@ export default function StudentProfilePage() {
                     onChange={(e) => onAvatarSelected(e.target.files?.[0])}
                   />
 
-                  {avatarPath ? (
-                    <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Saved</span>
-                  ) : null}
+                  {avatarPath ? <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Saved</span> : null}
                 </div>
               </div>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 <button
-                  onClick={() => {
-                    setMsg("");
-                    setEditing((p) => !p);
-                  }}
-                  style={btnBlue}
+                  onClick={() => setEditing((v) => !v)}
+                  style={editing ? btnWhite : btnBlue}
+                  type="button"
                 >
-                   {editing ? "Cancel Edit" : "Edit Profile"}
+                  {editing ? "Cancel Edit" : "Edit Profile"}
                 </button>
               </div>
             </div>
@@ -450,61 +442,64 @@ export default function StudentProfilePage() {
           </div>
         </div>
 
-        {/* RIGHT SIDE */}
+        {/* RIGHT SIDE (only these cards changed) */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {/* Academic Performance */}
           <div style={card}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ fontWeight: 900 }}>Academic Performance</div>
-              <div style={{ opacity: 0.6 }}>•••</div>
+              <div style={{ opacity: 0.6 }}>â€¢â€¢â€¢</div>
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 10, marginTop: 10, alignItems: "center" }}>
-              <div style={donutWrap}>
-                <div style={donutInner}>
-                  <div style={{ fontWeight: 900 }}>{stats.gpa.toFixed(2)}</div>
-                </div>
-              </div>
+            {(() => {
+              const gpaPercent = clamp(Math.round((stats.gpa / 4) * 100), 0, 100);
+              const isZero = gpaPercent === 0;
 
-              <div>
-                <div style={{ fontWeight: 900, color: "#111827" }}>Overall GPA</div>
-                <div style={{ fontSize: 20, fontWeight: 900, marginTop: 3 }}>{stats.gpa.toFixed(2)}</div>
+              return (
+                <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 10, marginTop: 10, alignItems: "center" }}>
+                  <div style={donutWrap(isZero, gpaPercent)}>
+                    <div style={donutInner}>
+                      <div style={{ fontWeight: 900, color: isZero ? "#9ca3af" : "#111827" }}>{stats.gpa.toFixed(2)}</div>
+                    </div>
+                  </div>
 
-                <div style={{ marginTop: 8, height: 6, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
-                  <div
-                    style={{
-                      height: "100%",
-                      width: `${clamp(Math.round((stats.gpa / 4) * 100), 0, 100)}%`,
-                      background: "#22c55e",
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, color: "#6b7280", fontSize: 12 }}>
                   <div>
-                    Completed Units
-                    <div style={{ fontWeight: 900, color: "#111827" }}>{stats.completedUnits}</div>
-                  </div>
-                  <div style={{ textAlign: "right" }}>
-                    Attendance
-                    <div style={{ fontWeight: 900, color: "#111827" }}>{stats.attendance}%</div>
+                    <div style={{ fontWeight: 900, color: "#111827" }}>Overall GPA</div>
+                    <div style={{ fontSize: 20, fontWeight: 900, marginTop: 3, color: isZero ? "#9ca3af" : "#111827" }}>
+                      {stats.gpa.toFixed(2)}
+                    </div>
+
+                    <div style={{ marginTop: 8, height: 6, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${gpaPercent}%`, background: isZero ? "#d1d5db" : "#22c55e" }} />
+                    </div>
+
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, color: "#6b7280", fontSize: 12 }}>
+                      <div>
+                        Completed Units
+                        <div style={{ fontWeight: 900, color: "#111827" }}>{stats.completedUnits}</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        Attendance
+                        <div style={{ fontWeight: 900, color: "#111827" }}>{stats.attendance}%</div>
+                      </div>
+                    </div>
+
+                    {!stats.hasData && (
+                      <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
+                        (No grades yet â€” values will update once grades exist.)
+                      </div>
+                    )}
                   </div>
                 </div>
-
-                {!stats.hasData && (
-                  <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
-                    (This card shows sample values until grades exist.)
-                  </div>
-                )}
-              </div>
-            </div>
+              );
+            })()}
           </div>
 
           {/* Grade Distribution */}
           <div style={card}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ fontWeight: 900 }}>Grade Distribution</div>
-              <div style={{ opacity: 0.6 }}>•••</div>
+              <div style={{ opacity: 0.6 }}>â€¢â€¢â€¢</div>
             </div>
 
             <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
@@ -516,19 +511,26 @@ export default function StudentProfilePage() {
                 ["C+", stats.dist["C+"], "#f59e0b"],
                 ["D", stats.dist.D, "#f97316"],
                 ["F", stats.dist.F, "#ef4444"],
-              ].map(([label, val, color]) => (
-                <div key={label} style={{ display: "grid", gridTemplateColumns: "36px 1fr 44px", gap: 10, alignItems: "center" }}>
-                  <div style={{ fontWeight: 900 }}>{label}</div>
-                  <div style={{ height: 8, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${clamp(val, 0, 100)}%`, background: color }} />
+              ].map(([label, val, color]) => {
+                const isZero = Number(val) === 0;
+                const barColor = isZero ? "#d1d5db" : color;
+
+                return (
+                  <div key={label} style={{ display: "grid", gridTemplateColumns: "36px 1fr 44px", gap: 10, alignItems: "center" }}>
+                    <div style={{ fontWeight: 900 }}>{label}</div>
+                    <div style={{ height: 8, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
+                      <div style={{ height: "100%", width: `${clamp(val, 0, 100)}%`, background: barColor }} />
+                    </div>
+                    <div style={{ textAlign: "right", fontWeight: 900, color: isZero ? "#9ca3af" : "#111827" }}>
+                      {val}%
+                    </div>
                   </div>
-                  <div style={{ textAlign: "right", fontWeight: 900 }}>{val}%</div>
-                </div>
-              ))}
+                );
+              })}
 
               {!stats.hasData && (
                 <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
-                  (Sample distribution until grades exist.)
+                  (No grades yet â€” distribution will populate once grades exist.)
                 </div>
               )}
             </div>
@@ -547,9 +549,7 @@ function Section({ title, children, editing }) {
         {editing && <div style={{ marginLeft: "auto", fontSize: 12, color: "#6b7280" }}>Editing</div>}
       </div>
 
-      <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-        {children}
-      </div>
+      <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>{children}</div>
     </div>
   );
 }
@@ -576,7 +576,7 @@ function Field({ label, value, editing, onChange, optional = false, type = "text
   );
 }
 
-/* ---------- styles (tighter / less lengthy) ---------- */
+/* ---------- styles ---------- */
 
 const wrap = { width: "100%" };
 
@@ -667,13 +667,29 @@ const input = {
   fontSize: 13,
 };
 
-const donutWrap = {
-  width: 90,
-  height: 90,
-  borderRadius: "50%",
-  background: "conic-gradient(#22c55e 0deg 140deg, #3b82f6 140deg 260deg, #e5e7eb 260deg 360deg)",
-  display: "grid",
-  placeItems: "center",
+const donutWrap = (isZero, gpaPercent) => {
+  const p = clamp(gpaPercent, 0, 100);
+
+  if (isZero) {
+    return {
+      width: 90,
+      height: 90,
+      borderRadius: "50%",
+      background: "conic-gradient(#d1d5db 0deg 360deg)",
+      display: "grid",
+      placeItems: "center",
+    };
+  }
+
+  const deg = Math.round((p / 100) * 360);
+  return {
+    width: 90,
+    height: 90,
+    borderRadius: "50%",
+    background: `conic-gradient(#22c55e 0deg ${deg}deg, #e5e7eb ${deg}deg 360deg)`,
+    display: "grid",
+    placeItems: "center",
+  };
 };
 
 const donutInner = {

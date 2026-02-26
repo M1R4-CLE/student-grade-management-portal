@@ -35,7 +35,7 @@ export default function StudentLayout({ children }) {
 
       const { data: profile, error: pErr } = await supabase
         .from("profiles")
-        .select("full_name, role, student_number")
+        .select("full_name, role, student_no")
         .eq("id", user.id)
         .single();
 
@@ -52,9 +52,8 @@ export default function StudentLayout({ children }) {
       if (cancelled) return;
 
       setFullName(profile.full_name || "Student");
-      setStudentId(profile.student_number || "");
+      setStudentId(profile.student_no || "");
 
-      // Get enrolled course IDs
       const { data: enrolls, error: eErr } = await supabase
         .from("enrollments")
         .select("course_id")
@@ -76,7 +75,6 @@ export default function StudentLayout({ children }) {
         return;
       }
 
-      // Fetch upcoming course events (future only)
       const nowIso = new Date().toISOString();
 
       const { data: events, error: evErr } = await supabase
@@ -96,7 +94,6 @@ export default function StudentLayout({ children }) {
         return;
       }
 
-      // Convert to the exact shape your RightPanel expects: { title, when }
       const mapped = (events || []).map((ev) => {
         const code = ev.courses?.code ? `${ev.courses.code} - ` : "";
         return {

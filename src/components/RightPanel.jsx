@@ -6,6 +6,7 @@ import LogoutButton from "./LogoutButton";
 import NotificationsModal from "./NotificationsModal";
 import AgendaCalendar from "./AgendaCalendar";
 
+
 function Card({ title, children }) {
   return (
     <div
@@ -95,6 +96,10 @@ export default function RightPanel({
   studentId = "",
   upcoming = [],
   notifications = [],
+  onMarkNotificationRead,
+  onMarkAllNotificationsRead,
+  onDeleteNotification,
+  onDeleteReadNotifications,
 }) {
   // date display
   const now = useMemo(() => new Date(), []);
@@ -180,14 +185,15 @@ export default function RightPanel({
         open={notifOpen}
         onClose={() => setNotifOpen(false)}
         items={notifications}
+        onMarkOneRead={onMarkNotificationRead}
+        onMarkAllRead={onMarkAllNotificationsRead}
+        onDeleteOne={onDeleteNotification}
+        onDeleteAllRead={onDeleteReadNotifications}
       />
 
       <aside
   style={{
     width: 320,
-    height: "100%",
-    overflowY: "auto",
-    boxSizing: "border-box",
     display: "flex",
     flexDirection: "column",
     gap: 14,

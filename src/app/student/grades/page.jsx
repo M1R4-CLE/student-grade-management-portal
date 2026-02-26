@@ -1,388 +1,240 @@
-"use client";
+﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
+import { useRouter } from "next/navigation";
 
-function statusColor(status) {
-  const s = String(status || "").toLowerCase();
-  if (s === "submitted" || s === "graded" || s === "computed") return { bg: "#dcfce7", text: "#166534" };
-  if (s === "absent" || s === "missing") return { bg: "#fee2e2", text: "#991b1b" };
-  if (s === "upcoming" || s === "pending") return { bg: "#fef3c7", text: "#92400e" };
-  return { bg: "#e5e7eb", text: "#374151" };
+function gradeColor(val) {
+  if (val == null) return "#9ca3af";
+  return Number(val) >= 75 ? "#16a34a" : "#dc2626";
 }
 
-function formatShortDate(value) {
-  if (!value) return "-";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "-";
-  return d.toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" });
+function gradeRemark(val) {
+  if (val == null) return "Pending";
+  const g = Number(val);
+  if (g >= 90) return "Excellent";
+  if (g >= 80) return "Very Good";
+  if (g >= 75) return "Passed";
+  return "Failed";
 }
 
-export default function GradesPage() {
-  const params = useSearchParams();
-  const clickedCode = String(params.get("course") || "").trim();
-  const clickedTitle = String(params.get("title") || "").trim();
-
+export default function StudentGradesPage() {
+  const router = useRouter();
   const [grades, setGrades] = useState([]);
-  const [enrolledCourses, setEnrolledCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [courseFilter, setCourseFilter] = useState("ALL");
-  const [typeFilter, setTypeFilter] = useState("ALL");
 
   useEffect(() => {
-    const load = async () => {
+    const run = async () => {
       setLoading(true);
       setErr("");
 
       const { data: sessionData } = await supabase.auth.getSession();
       const user = sessionData?.session?.user;
+      if (!user) { router.replace("/login"); return; }
 
-      if (!user) {
-        setErr("Not logged in.");
-        setLoading(false);
-        return;
-      }
+      const { data: profile, error: pErr } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
 
-      const [gradesRes, enrollRes] = await Promise.all([
-        (async () => {
-          const withTs = await supabase
-            .from("grades")
-            .select("course_id, prelim, midterm, final_exam, final_grade, updated_at, courses(code, title)")
-            .eq("student_id", user.id)
-            .order("course_id", { ascending: true });
-          if (!withTs.error) return withTs;
-          return supabase
-            .from("grades")
-            .select("course_id, prelim, midterm, final_exam, final_grade, courses(code, title)")
-            .eq("student_id", user.id)
-            .order("course_id", { ascending: true });
-        })(),
-        supabase
-          .from("enrollments")
-          .select("course_id, courses(code, title)")
-          .eq("student_id", user.id),
-      ]);
+      if (pErr || !profile) { router.replace("/login"); return; }
+      if (profile.role !== "student") { router.replace("/teacher/Dashboard"); return; }
 
-      if (gradesRes.error) setErr(gradesRes.error.message);
-      else setGrades(gradesRes.data || []);
+      const { data, error } = await supabase
+        .from("grades")
+        .select(`
+          prelim,
+          midterm,
+          final_exam,
+          final_grade,
+          courses!inner(
+            code,
+            title,
+            profiles!courses_teacher_id_fkey(full_name)
+          )
+        `)
+        .eq("student_id", user.id);
 
-      if (enrollRes.error) {
-        if (!gradesRes.error) setErr(enrollRes.error.message);
+      if (error) {
+        setErr(error.message);
+        setGrades([]);
       } else {
-        setEnrolledCourses((enrollRes.data || []).map((r) => r.courses).filter(Boolean));
+        setGrades(
+          (data || []).map((r) => ({
+            code: r.courses?.code || "N/A",
+            name: r.courses?.title || "N/A",
+            instructor: r.courses?.profiles?.full_name || "N/A",
+            prelim: r.prelim != null ? r.prelim : null,
+            midterm: r.midterm != null ? r.midterm : null,
+            final_exam: r.final_exam != null ? r.final_exam : null,
+            final: r.final_grade != null ? r.final_grade : null,
+          }))
+        );
       }
 
       setLoading(false);
     };
 
-    load();
-  }, []);
+    run();
+  }, [router]);
 
-  useEffect(() => {
-    if (clickedCode) setCourseFilter(clickedCode);
-  }, [clickedCode]);
+  // Compute overall average only over courses that have a final grade
+  const gradesWith = grades.filter((g) => g.final != null);
+  const overallAvg =
+    gradesWith.length > 0
+      ? (gradesWith.reduce((s, g) => s + Number(g.final), 0) / gradesWith.length).toFixed(2)
+      : null;
 
-  const courseCatalog = useMemo(() => {
-    const fromGrades = grades
-      .map((g) => ({ code: String(g?.courses?.code || "").trim(), title: String(g?.courses?.title || "").trim() }))
-      .filter((x) => x.code);
-    const fromEnroll = enrolledCourses
-      .map((c) => ({ code: String(c?.code || "").trim(), title: String(c?.title || "").trim() }))
-      .filter((x) => x.code);
-    const fromClick = clickedCode ? [{ code: clickedCode, title: clickedTitle || clickedCode }] : [];
-    const source = [...fromEnroll, ...fromGrades, ...fromClick];
-    const seen = new Set();
-    return source.filter((x) => {
-      const k = x.code.toLowerCase();
-      if (seen.has(k)) return false;
-      seen.add(k);
-      return true;
-    });
-  }, [grades, enrolledCourses, clickedCode, clickedTitle]);
-
-  const performanceFeed = useMemo(() => {
-    const gradeMap = new Map(
-      grades.map((g) => [String(g?.courses?.code || "").trim(), g])
-    );
-
-    const rows = courseCatalog.flatMap((course) => {
-      const g = gradeMap.get(course.code);
-      const hasPrelim = g?.prelim != null;
-      const hasMidterm = g?.midterm != null;
-      const hasFinalExam = g?.final_exam != null;
-      const rowDate = g?.updated_at || null;
-
-      return [
-        {
-          date: rowDate,
-          courseCode: course.code,
-          courseTitle: course.title,
-          type: "Prelim",
-          item: "Prelim Grade",
-          status: hasPrelim ? "Graded" : "Pending",
-          score: hasPrelim ? `${Number(g.prelim).toFixed(2)}%` : "-",
-          note: hasPrelim ? "Score entered by teacher" : "Waiting for teacher entry",
-        },
-        {
-          date: rowDate,
-          courseCode: course.code,
-          courseTitle: course.title,
-          type: "Midterm",
-          item: "Midterm Grade",
-          status: hasMidterm ? "Graded" : "Pending",
-          score: hasMidterm ? `${Number(g.midterm).toFixed(2)}%` : "-",
-          note: hasMidterm ? "Score entered by teacher" : "Waiting for teacher entry",
-        },
-        {
-          date: rowDate,
-          courseCode: course.code,
-          courseTitle: course.title,
-          type: "Final Exam",
-          item: "Final Exam Grade",
-          status: hasFinalExam ? "Graded" : "Pending",
-          score: hasFinalExam ? `${Number(g.final_exam).toFixed(2)}%` : "-",
-          note: hasFinalExam ? "Score entered by teacher" : "Waiting for teacher entry",
-        },
-        {
-          date: rowDate,
-          courseCode: course.code,
-          courseTitle: course.title,
-          type: "Final Grade",
-          item: "Computed Final Grade",
-          status: hasPrelim || hasMidterm || hasFinalExam ? "Computed" : "Pending",
-          score:
-            hasPrelim || hasMidterm || hasFinalExam
-              ? `${(Number(g?.prelim ?? 0) * 0.3 + Number(g?.midterm ?? 0) * 0.3 + Number(g?.final_exam ?? 0) * 0.4).toFixed(2)}%`
-              : "-",
-          note: hasPrelim || hasMidterm || hasFinalExam ? "Based on Grade Entry formula" : "No component grades yet",
-        },
-      ];
-    });
-    return rows.sort((a, b) => {
-      const da = a.date ? new Date(a.date).getTime() : 0;
-      const db = b.date ? new Date(b.date).getTime() : 0;
-      if (db !== da) return db - da;
-      return String(a.courseCode).localeCompare(String(b.courseCode));
-    });
-  }, [courseCatalog, grades]);
-
-  const scopedFeed = useMemo(() => {
-    if (courseFilter === "ALL") return performanceFeed;
-    return performanceFeed.filter((x) => x.courseCode === courseFilter);
-  }, [performanceFeed, courseFilter]);
-
-  const filteredFeed = useMemo(
-    () => scopedFeed.filter((x) => (typeFilter === "ALL" ? true : x.type === typeFilter)),
-    [scopedFeed, typeFilter]
-  );
-
-  const selectedCourse = useMemo(() => {
-    if (courseFilter === "ALL") return null;
-    return courseCatalog.find((x) => x.code === courseFilter) || { code: clickedCode, title: clickedTitle || clickedCode };
-  }, [courseCatalog, courseFilter, clickedCode, clickedTitle]);
-
-  const summary = useMemo(() => {
-    const scopedGrades =
-      courseFilter === "ALL" ? grades : grades.filter((g) => String(g?.courses?.code || "").trim() === courseFilter);
-    const finals = scopedGrades
-      .map((g) => Number(g?.prelim ?? 0) * 0.3 + Number(g?.midterm ?? 0) * 0.3 + Number(g?.final_exam ?? 0) * 0.4)
-      .filter((x) => Number.isFinite(x) && x > 0);
-    const avgFinal = finals.length ? (finals.reduce((a, b) => a + b, 0) / finals.length).toFixed(2) : "0.00";
-    const componentRows = scopedFeed.filter((x) => x.type !== "Final Grade");
-    const gradedEntries = componentRows.filter((x) => String(x.status).toLowerCase() === "graded").length;
-    const pendingEntries = componentRows.filter((x) => String(x.status).toLowerCase() === "pending").length;
-    const computedFinals = scopedFeed.filter((x) => x.type === "Final Grade" && x.score !== "-").length;
-
-    return { avgFinal, gradedEntries, pendingEntries, computedFinals };
-  }, [grades, scopedFeed, courseFilter]);
-
-  if (loading) return <div style={{ padding: 12 }}>Loading...</div>;
-  if (err) return <div style={{ padding: 12, color: "#b91c1c" }}>{err}</div>;
+  if (loading) return <div style={{ padding: 24 }}>Loading grades...</div>;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-        <div>
-          <h1 style={{ margin: 0, fontSize: 32, lineHeight: 1.15, color: "#111827" }}>Academic Performance</h1>
-          <p style={{ margin: "4px 0 0", color: "#6b7280", fontSize: 13 }}>
-            {selectedCourse
-              ? `Showing stats for ${selectedCourse.code} - ${selectedCourse.title}`
-              : "Track teacher-entered prelim, midterm, and final exam scores."}
-          </p>
-        </div>
-        <div style={{ color: "#4b5563", fontSize: 12 }}>
-          Last updated:{" "}
-          {new Date().toLocaleString("en-US", {
-            month: "short",
-            day: "2-digit",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </div>
-      </div>
+    <div style={{ width: "100%" }}>
 
-      <div className="perf-cards">
-        <div className="perf-card">
-          <div className="label">Average Final Grade</div>
-          <div className="value">{summary.avgFinal}%</div>
-        </div>
-        <div className="perf-card">
-          <div className="label">Graded Entries</div>
-          <div className="value">{summary.gradedEntries}</div>
-        </div>
-        <div className="perf-card">
-          <div className="label">Pending Entries</div>
-          <div className="value">{summary.pendingEntries}</div>
-        </div>
-        <div className="perf-card">
-          <div className="label">Computed Finals</div>
-          <div className="value">{summary.computedFinals}</div>
-        </div>
-      </div>
+      {/* â”€â”€ Header â”€â”€ */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
+        <div style={{ fontWeight: 900, fontSize: 20 }}>My Gradebook</div>
 
-      <div style={{ border: "1px solid rgba(0,0,0,0.08)", borderRadius: 14, background: "rgba(255,255,255,0.9)", padding: 12 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
-          <div style={{ fontWeight: 800, color: "#111827" }}>
-            {selectedCourse ? `${selectedCourse.title} Timeline` : "Performance Timeline"}
-          </div>
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <select value={courseFilter} onChange={(e) => setCourseFilter(e.target.value)} className="filter-pill">
-              <option value="ALL">All Courses</option>
-              {courseCatalog.map((course) => (
-                <option key={course.code} value={course.code}>
-                  {course.code} - {course.title}
-                </option>
-              ))}
-            </select>
-
-            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)} className="filter-pill">
-              <option value="ALL">All Types</option>
-              <option value="Prelim">Prelim</option>
-              <option value="Midterm">Midterm</option>
-              <option value="Final Exam">Final Exam</option>
-              <option value="Final Grade">Final Grade</option>
-            </select>
-          </div>
-        </div>
-
-        {!filteredFeed.length ? (
-          <div style={{ padding: "16px 8px", color: "#6b7280" }}>No records for this filter.</div>
-        ) : (
-          <div style={{ overflowX: "auto" }}>
-            <table className="perf-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Course</th>
-                  <th>Type</th>
-                  <th>Item</th>
-                  <th>Status</th>
-                  <th>Score</th>
-                  <th>Note</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredFeed.map((row, i) => {
-                  const color = statusColor(row.status);
-                  return (
-                    <tr key={`${row.courseCode}-${row.type}-${i}`}>
-                      <td>{formatShortDate(row.date)}</td>
-                      <td>{row.courseCode}</td>
-                      <td>{row.type}</td>
-                      <td>{row.item}</td>
-                      <td>
-                        <span
-                          style={{
-                            background: color.bg,
-                            color: color.text,
-                            borderRadius: 999,
-                            padding: "4px 10px",
-                            fontWeight: 700,
-                            fontSize: 12,
-                            display: "inline-block",
-                          }}
-                        >
-                          {row.status}
-                        </span>
-                      </td>
-                      <td>{row.score}</td>
-                      <td>{row.note}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        {overallAvg && (
+          <div
+            style={{
+              display: "flex", alignItems: "center", gap: 10,
+              background: "rgba(255,255,255,.85)",
+              border: "1px solid rgba(0,0,0,.08)",
+              borderRadius: 12, padding: "8px 18px",
+            }}
+          >
+            <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 700 }}>
+              Overall Average
+            </span>
+            <span style={{ fontSize: 24, fontWeight: 900, color: gradeColor(overallAvg) }}>
+              {overallAvg}%
+            </span>
+            <span
+              style={{
+                fontSize: 12, fontWeight: 800, padding: "2px 10px", borderRadius: 999,
+                background: overallAvg >= 75 ? "#dcfce7" : "#fee2e2",
+                color: overallAvg >= 75 ? "#166534" : "#991b1b",
+              }}
+            >
+              {gradeRemark(overallAvg)}
+            </span>
           </div>
         )}
       </div>
 
-      <style jsx>{`
-        .perf-cards {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 10px;
-        }
-        .perf-card {
-          border: 1px solid rgba(0, 0, 0, 0.08);
-          border-radius: 12px;
-          background: rgba(255, 255, 255, 0.9);
-          padding: 12px;
-        }
-        .perf-card .label {
-          font-size: 12px;
-          color: #6b7280;
-          font-weight: 700;
-        }
-        .perf-card .value {
-          margin-top: 4px;
-          font-size: 28px;
-          line-height: 1.1;
-          color: #111827;
-          font-weight: 900;
-        }
-        .filter-pill {
-          min-height: 34px;
-          border-radius: 999px;
-          border: 1px solid rgba(0, 0, 0, 0.1);
-          padding: 0 12px;
-          background: #fff;
-          color: #374151;
-          font-size: 12px;
-          max-width: 240px;
-        }
-        .perf-table {
-          width: 100%;
-          border-collapse: collapse;
-          font-size: 13px;
-        }
-        .perf-table th {
-          text-align: left;
-          color: #6b7280;
-          font-weight: 700;
-          border-bottom: 1px solid rgba(0, 0, 0, 0.08);
-          padding: 10px 8px;
-          white-space: nowrap;
-        }
-        .perf-table td {
-          color: #1f2937;
-          border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-          padding: 10px 8px;
-          vertical-align: top;
-        }
-        @media (max-width: 1100px) {
-          .perf-cards {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-        }
-        @media (max-width: 640px) {
-          .perf-cards {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
+      {err && (
+        <div style={{ padding: "10px 14px", borderRadius: 8, background: "#fee2e2", color: "#991b1b", marginBottom: 12, fontWeight: 700, fontSize: 13 }}>
+          {err}
+        </div>
+      )}
+
+      {grades.length === 0 ? (
+        <div
+          className="glassCard"
+          style={{ padding: 40, textAlign: "center", color: "#6b7280" }}
+        >
+          No grades available yet. Enroll in courses and wait for your teacher to enter grades.
+        </div>
+      ) : (
+        <div className="glassCard" style={{ padding: 16, overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: "#f8fafc" }}>
+                <Th>Course Code</Th>
+                <Th>Course Name</Th>
+                <Th>Instructor</Th>
+                <Th center>Prelim (30%)</Th>
+                <Th center>Midterm (30%)</Th>
+                <Th center>Final Exam (40%)</Th>
+                <Th center>Final Grade</Th>
+                <Th center>Remarks</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {grades.map((g, i) => (
+                <tr
+                  key={i}
+                  style={{ borderBottom: "1px solid #f1f5f9" }}
+                >
+                  <Td>
+                    <span style={{ fontWeight: 800, color: "var(--blue-main)" }}>
+                      {g.code}
+                    </span>
+                  </Td>
+                  <Td>{g.name}</Td>
+                  <Td style={{ color: "#6b7280" }}>{g.instructor}</Td>
+                  <Td center>{g.prelim != null ? `${g.prelim}%` : "â€”"}</Td>
+                  <Td center>{g.midterm != null ? `${g.midterm}%` : "â€”"}</Td>
+                  <Td center>{g.final_exam != null ? `${g.final_exam}%` : "â€”"}</Td>
+                  <Td center>
+                    <span style={{ fontWeight: 900, fontSize: 15, color: gradeColor(g.final) }}>
+                      {g.final != null ? `${g.final}%` : "â€”"}
+                    </span>
+                  </Td>
+                  <Td center>
+                    <span
+                      style={{
+                        display: "inline-block",
+                        padding: "3px 10px",
+                        borderRadius: 999,
+                        fontSize: 11,
+                        fontWeight: 800,
+                        background:
+                          g.final == null
+                            ? "#f3f4f6"
+                            : g.final >= 75
+                            ? "#dcfce7"
+                            : "#fee2e2",
+                        color:
+                          g.final == null
+                            ? "#9ca3af"
+                            : g.final >= 75
+                            ? "#166534"
+                            : "#991b1b",
+                      }}
+                    >
+                      {gradeRemark(g.final)}
+                    </span>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
+          <div style={{ marginTop: 12, fontSize: 11, color: "#9ca3af" }}>
+            Final Grade = (Prelim Ã— 0.30) + (Midterm Ã— 0.30) + (Final Exam Ã— 0.40). Computed automatically by the system.
+          </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+// â”€â”€ Table helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function Th({ children, center }) {
+  return (
+    <th
+      style={{
+        padding: "10px 12px",
+        textAlign: center ? "center" : "left",
+        fontWeight: 800,
+        color: "#374151",
+        borderBottom: "2px solid #e5e7eb",
+        whiteSpace: "nowrap",
+        background: "#f8fafc",
+      }}
+    >
+      {children}
+    </th>
+  );
+}
+
+function Td({ children, center, style: extraStyle }) {
+  return (
+    <td style={{ padding: "10px 12px", verticalAlign: "middle", textAlign: center ? "center" : "left", ...extraStyle }}>
+      {children}
+    </td>
   );
 }

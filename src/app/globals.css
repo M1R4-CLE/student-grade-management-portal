@@ -1,4 +1,4 @@
-:root {
+﻿:root {
   /* Font */
   --font-main: var(--font-poppins);
 
@@ -54,7 +54,7 @@
   display:flex;
   flex-direction:column;
   gap:12px;
-  align-items:center;   
+  align-items: center;   
 }
 
 .loginInput{
@@ -106,7 +106,6 @@
 
 html, body {
   font-family: var(--font-main), system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  margin: 0;
 }
 
 body{

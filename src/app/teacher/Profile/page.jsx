@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 // ============================================================
 // FILE: src/app/teacher/Profile/page.jsx
