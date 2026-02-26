@@ -39,7 +39,6 @@ export default function TeacherMessagesPage() {
   const [selectedIds, setSelectedIds] = useState([]);
   const [status, setStatus]           = useState("");
   const [sending, setSending]         = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
   const [toast, setToast]             = useState("");
 
   const [userId, setUserId]   = useState("");
@@ -182,24 +181,8 @@ export default function TeacherMessagesPage() {
     }
   };
 
-  const refreshUnreadCount = async () => {
-    if (!userId) return;
-
-    const { count, error } = await supabase
-      .from("messages")
-      .select("id", { count: "exact", head: true })
-      .eq("recipient_id", userId)
-      .is("recipient_read_at", null)
-      .is("recipient_trashed_at", null);
-
-    if (!error) setUnreadCount(count || 0);
-  };
-
-
   useEffect(() => {
     if (!userId) return;
-
-    refreshUnreadCount();
 
     const channel = supabase
       .channel("realtime-messages-teacher")
@@ -211,7 +194,6 @@ export default function TeacherMessagesPage() {
           if (m.recipient_id === userId) {
             setToast("New message received!");
             setTimeout(() => setToast(""), 3000);
-            await refreshUnreadCount();
           }
         }
       )
@@ -259,7 +241,6 @@ export default function TeacherMessagesPage() {
       })
     );
     setSelectedIds([]);
-    await refreshUnreadCount();
     setStatus("Moved to Trash.");
     setTimeout(() => setStatus(""), 3000);
   };
@@ -385,7 +366,6 @@ export default function TeacherMessagesPage() {
       prev.map((x) => (x.id === msgId ? { ...x, recipient_read_at: now } : x))
     );
     setOpenMsg((prev) => (prev?.id === msgId ? { ...prev, recipient_read_at: now } : prev));
-    await refreshUnreadCount();
   };
 
   useEffect(() => {
@@ -478,16 +458,7 @@ export default function TeacherMessagesPage() {
         <div style={bodyGrid}>
           {/* Folders */}
           <div style={foldersStyle}>
-            <Folder
-              label={
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
-                  <span>Inbox</span>
-                  {unreadCount > 0 && <span style={badgeStyle}>{unreadCount}</span>}
-                </div>
-              }
-              active={folder === "inbox"}
-              onClick={() => setFolder("inbox")}
-            />
+            <Folder label="Inbox" active={folder === "inbox"} onClick={() => setFolder("inbox")} />
             <Folder label="Sent"  active={folder === "sent"}  onClick={() => setFolder("sent")} />
             <Folder label="Trash" active={folder === "trash"} onClick={() => setFolder("trash")} />
           </div>
@@ -756,20 +727,6 @@ const folders = {
   paddingTop: 2,
 };
 const foldersStyle = folders;
-
-const badgeStyle = {
-  minWidth: 18,
-  height: 18,
-  borderRadius: 999,
-  padding: "0 6px",
-  background: "#2f6fb3",
-  color: "#fff",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  fontSize: 11,
-  fontWeight: 800,
-};
 
 const folderBtn = {
   width: "100%",

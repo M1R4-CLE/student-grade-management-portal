@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   /* Font */
   --font-main: var(--font-poppins);
 
@@ -31,6 +31,7 @@
   background: rgba(255,255,255,.70);
   border: 1px solid rgba(0,0,0,.15);
   box-shadow: 0 18px 45px rgba(0,0,0,.15);
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
 }
 
@@ -51,15 +52,15 @@
 }
 
 .loginForm{
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-  align-items: center;   
+  display: grid;
+  gap: 10px;
 }
 
 .loginInput{
-  width:85%;            /* makes it shorter */
-  max-width:300px;
+  width: 300px;
+  height: 46px;
+  justify-self: center;
+  box-sizing: border-box;
   padding:12px 14px;
   border:1px solid rgba(0,0,0,.15);
   background:rgba(255,255,255,.65);
@@ -72,9 +73,39 @@
   box-shadow: 0 0 0 3px rgba(47,111,179,.12);
 }
 
+.passwordWrap{
+  position: relative;
+  width: 100%;   /* alignment */
+}
+
+.passwordWrap .loginInput{
+  width: 100%;
+  padding-right: 55px;
+  box-sizing: border-box;
+}
+
+.togglePassword{
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 0;
+}
+
+.togglePassword:hover{
+  opacity: 1;
+}
+
 .loginBtn{
   width:85%;
   max-width:300px;
+  justify-self: center;
   padding:12px 14px;
   border:1px solid rgba(0,0,0,.35);
   background:rgba(255,255,255,.7);
@@ -89,6 +120,8 @@
 }
 
 .forgotBtn{
+  justify-self: center;
+  text-align: center;
   margin-top: 2px;
   background: transparent;
   border: none;
@@ -119,6 +152,7 @@ body{
   border: 1px solid rgba(0,0,0,.08);
   border-radius: 18px;
   box-shadow: 0 12px 30px rgba(0,0,0,.08);
+  -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
 }
 

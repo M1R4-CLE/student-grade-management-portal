@@ -149,6 +149,19 @@ export default function TeacherGradeEntryPage() {
     if (error) {
       setErr(error.message);
     } else {
+      const selectedCourse = courses.find(c => String(c.id) === String(selectedId));
+      const finalGrade = Math.round((prelim * 0.3 + midterm * 0.3 + final_exam * 0.4) * 100) / 100;
+      const notifPayload = {
+        user_id: row.studentId,
+        type: "grade",
+        title: "Grade updated",
+        body: `${selectedCourse?.code || "Course"}: ${selectedCourse?.title || "Course"} - Final Grade: ${finalGrade}%`,
+        link: `/student/Grades?course=${encodeURIComponent(selectedCourse?.code || "")}`,
+      };
+      const { error: notifError } = await supabase.from("notifications").insert(notifPayload);
+      if (notifError) {
+        console.error("Grade saved but notification failed:", notifError.message);
+      }
       setSaved(prev => ({ ...prev, [row.studentId]: true }));
     }
     setSaving(prev => ({ ...prev, [row.studentId]: false }));

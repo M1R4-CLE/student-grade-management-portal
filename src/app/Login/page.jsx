@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
@@ -9,6 +9,7 @@ import Link from "next/link";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -75,7 +76,7 @@ export default function LoginPage() {
       }}
     >
       <div className="loginCard">
-        <div style={{ display: "scale(0.95)", placeItems: "center" }}>
+        <div style={{ transform: "scale(0.95)", display: "grid", placeItems: "center" }}>
           <BrandLogo />
           <div style={{ marginTop: 10, marginBottom: 10, fontWeight: 700, textAlign: "center" }}>
             Welcome to Student Grade
@@ -94,14 +95,39 @@ export default function LoginPage() {
             required
           />
 
-          <input
-            className="loginInput"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
-            type="password"
-            required
-          />
+          {/* Password (toggle inside, no layout change) */}
+          <div style={{ position: "relative", width: "300px", justifySelf: "center" }}>
+            <input
+              className="loginInput"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Password"
+              type={showPassword ? "text" : "password"}
+              required
+              style={{ width: "100%", maxWidth: "none", paddingRight: "52px" }}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              style={{
+                position: "absolute",
+                right: "12px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "transparent",
+                border: "none",
+                padding: 0,
+                margin: 0,
+                fontSize: "12px",
+                fontWeight: 600,
+                cursor: "pointer",
+                lineHeight: 1,
+                opacity: 0.7,
+              }}
+            >
+              {showPassword ? "Hide" : "Show"}
+            </button>
+          </div>
 
           {err && <p className="loginError">{err}</p>}
 

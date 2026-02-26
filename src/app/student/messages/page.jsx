@@ -712,6 +712,19 @@ function Folder({ label, active, onClick }) {
    STYLES
 =========================== */
 
+const toastStyle = {
+  position: "fixed",
+  top: 16,
+  right: 16,
+  zIndex: 1200,
+  background: "#1f2937",
+  color: "#fff",
+  padding: "10px 12px",
+  borderRadius: 8,
+  fontSize: 12,
+  boxShadow: "0 6px 18px rgba(0,0,0,0.2)",
+};
+
 const wrap = {
   background: "#efefef",
   minHeight: "100%",
@@ -803,6 +816,20 @@ const bodyGrid = {
 
 const folders = {
   paddingTop: 2,
+};
+
+const badgeStyle = {
+  minWidth: 18,
+  height: 18,
+  borderRadius: 999,
+  padding: "0 6px",
+  background: "#2f6fb3",
+  color: "#fff",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 11,
+  fontWeight: 800,
 };
 
 const folderBtn = {
@@ -951,6 +978,58 @@ const cancelBtn = {
   border: "1px solid #d4d8de",
   background: "#fff",
   color: "#6b7280",
+  borderRadius: 6,
+  padding: "0 14px",
+  fontSize: 14,
+  cursor: "pointer",
+};
+
+const modalBackdrop = {
+  position: "fixed",
+  inset: 0,
+  background: "rgba(0,0,0,0.35)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  zIndex: 1100,
+  padding: 16,
+};
+
+const openModalCard = {
+  width: "100%",
+  maxWidth: 760,
+  background: "#fff",
+  borderRadius: 10,
+  border: "1px solid #d4d8de",
+  padding: 16,
+  boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+};
+
+const closeBtn = {
+  width: 30,
+  height: 30,
+  borderRadius: 6,
+  border: "1px solid #d1d5db",
+  background: "#fff",
+  cursor: "pointer",
+  fontWeight: 700,
+};
+
+const messageBodyBox = {
+  marginTop: 12,
+  border: "1px solid #e5e7eb",
+  borderRadius: 8,
+  background: "#f9fafb",
+  padding: 12,
+  minHeight: 120,
+  whiteSpace: "pre-wrap",
+};
+
+const btnSecondary = {
+  height: 34,
+  border: "1px solid #d4d8de",
+  background: "#fff",
+  color: "#374151",
   borderRadius: 6,
   padding: "0 14px",
   fontSize: 14,
