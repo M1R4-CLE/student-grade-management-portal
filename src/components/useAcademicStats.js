@@ -50,32 +50,18 @@ export function useAcademicStats({ limit = 300, assumeUnitsPerCourse = 3 } = {})
 
   useEffect(() => {
     let cancelled = false;
+    let channel;
 
-    async function run() {
-      setLoading(true);
-      setErr("");
-
-      const { data: ures, error: uerr } = await supabase.auth.getUser();
-      const user = ures?.user;
-
-      if (!user || uerr) {
-        if (!cancelled) {
-          setGrades([]);
-          setEnrolledCourseIds([]);
-          setErr(uerr?.message || "Not logged in.");
-          setLoading(false);
-        }
-        return;
-      }
-
+    async function loadForUser(userId, showLoading = false) {
+      if (showLoading && !cancelled) setLoading(true);
       const [{ data: gData, error: gErr }, { data: eData, error: eErr }] = await Promise.all([
         supabase
           .from("grades")
           .select("course_id, final_grade")
-          .eq("student_id", user.id)
+          .eq("student_id", userId)
           .order("course_id", { ascending: true })
           .limit(limit),
-        supabase.from("enrollments").select("course_id").eq("student_id", user.id),
+        supabase.from("enrollments").select("course_id").eq("student_id", userId),
       ]);
 
       if (cancelled) return;
@@ -98,9 +84,49 @@ export function useAcademicStats({ limit = 300, assumeUnitsPerCourse = 3 } = {})
       setLoading(false);
     }
 
+    async function run() {
+      setLoading(true);
+      setErr("");
+
+      const { data: ures, error: uerr } = await supabase.auth.getUser();
+      const user = ures?.user;
+
+      if (!user || uerr) {
+        if (!cancelled) {
+          setGrades([]);
+          setEnrolledCourseIds([]);
+          setErr(uerr?.message || "Not logged in.");
+          setLoading(false);
+        }
+        return;
+      }
+
+      await loadForUser(user.id);
+      if (cancelled) return;
+
+      channel = supabase
+        .channel(`academic-stats-${user.id}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "grades", filter: `student_id=eq.${user.id}` },
+          () => {
+            loadForUser(user.id);
+          }
+        )
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "enrollments", filter: `student_id=eq.${user.id}` },
+          () => {
+            loadForUser(user.id);
+          }
+        )
+        .subscribe();
+    }
+
     run();
     return () => {
       cancelled = true;
+      if (channel) supabase.removeChannel(channel);
     };
   }, [limit]);
 

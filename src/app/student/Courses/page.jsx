@@ -49,13 +49,27 @@ export default function StudentCoursesPage() {
         src={course.img}
         alt={course?.title || "Course cover"}
         onError={() => markCoverBroken(course)}
-        style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 14 }}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          objectPosition: "center",
+          borderRadius: 14,
+          display: "block",
+        }}
       />
     ) : (
       <img
         src={getCourseImg(course?.title || "")}
         alt={course?.title || "Course cover"}
-        style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 14 }}
+        style={{
+          width: "100%",
+          height: "100%",
+          objectFit: "cover",
+          objectPosition: "center",
+          borderRadius: 14,
+          display: "block",
+        }}
       />
     );
 
@@ -269,7 +283,7 @@ export default function StudentCoursesPage() {
                       borderRadius: 14,
                       background: "#f0f0f0",
                       border: "1px solid rgba(0,0,0,0.03)",
-                      minHeight: 200,
+                      height: 200,
                       overflow: "hidden",
                     }}
                   >

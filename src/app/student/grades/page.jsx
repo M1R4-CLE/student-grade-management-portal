@@ -42,38 +42,74 @@ export default function StudentGradesPage() {
       if (pErr || !profile) { router.replace("/login"); return; }
       if (profile.role !== "student") { router.replace("/teacher/Dashboard"); return; }
 
-      const { data, error } = await supabase
-        .from("grades")
-        .select(`
-          prelim,
-          midterm,
-          final_exam,
-          final_grade,
-          courses!inner(
-            code,
-            title,
-            profiles!courses_teacher_id_fkey(full_name)
-          )
-        `)
+      const { data: enrollRows, error: enrollErr } = await supabase
+        .from("enrollments")
+        .select("course_id")
         .eq("student_id", user.id);
 
-      if (error) {
-        setErr(error.message);
+      if (enrollErr) {
+        setErr(enrollErr.message);
         setGrades([]);
-      } else {
-        setGrades(
-          (data || []).map((r) => ({
-            code: r.courses?.code || "N/A",
-            name: r.courses?.title || "N/A",
-            instructor: r.courses?.profiles?.full_name || "N/A",
-            prelim: r.prelim != null ? r.prelim : null,
-            midterm: r.midterm != null ? r.midterm : null,
-            final_exam: r.final_exam != null ? r.final_exam : null,
-            final: r.final_grade != null ? r.final_grade : null,
-          }))
-        );
+        setLoading(false);
+        return;
       }
 
+      const courseIds = Array.from(new Set((enrollRows || []).map((x) => x.course_id).filter(Boolean)));
+      if (!courseIds.length) {
+        setGrades([]);
+        setLoading(false);
+        return;
+      }
+
+      const [{ data: courseRows, error: coursesErr }, { data: gradeRows, error: gradesErr }] = await Promise.all([
+        supabase.from("courses").select("id, code, title, teacher_id").in("id", courseIds),
+        supabase
+          .from("grades")
+          .select("course_id, prelim, midterm, final_exam, final_grade")
+          .eq("student_id", user.id)
+          .in("course_id", courseIds),
+      ]);
+
+      if (coursesErr) {
+        setErr(coursesErr.message);
+        setGrades([]);
+        setLoading(false);
+        return;
+      }
+
+      if (gradesErr) {
+        setErr(gradesErr.message);
+        setGrades([]);
+        setLoading(false);
+        return;
+      }
+
+      const teacherIds = Array.from(new Set((courseRows || []).map((c) => c.teacher_id).filter(Boolean)));
+      const { data: teacherRows } = teacherIds.length
+        ? await supabase.from("profiles").select("id, full_name").in("id", teacherIds)
+        : { data: [] };
+
+      const courseMap = new Map((courseRows || []).map((c) => [c.id, c]));
+      const gradeMap = new Map((gradeRows || []).map((g) => [g.course_id, g]));
+      const teacherMap = new Map((teacherRows || []).map((t) => [t.id, t.full_name || "N/A"]));
+
+      const merged = courseIds
+        .map((cid) => {
+          const c = courseMap.get(cid);
+          const g = gradeMap.get(cid);
+          return {
+            code: c?.code || "N/A",
+            name: c?.title || "N/A",
+            instructor: teacherMap.get(c?.teacher_id) || "N/A",
+            prelim: g?.prelim != null ? g.prelim : null,
+            midterm: g?.midterm != null ? g.midterm : null,
+            final_exam: g?.final_exam != null ? g.final_exam : null,
+            final: g?.final_grade != null ? g.final_grade : null,
+          };
+        })
+        .sort((a, b) => String(a.code).localeCompare(String(b.code)));
+
+      setGrades(merged);
       setLoading(false);
     };
 
@@ -165,12 +201,12 @@ export default function StudentGradesPage() {
                   </Td>
                   <Td>{g.name}</Td>
                   <Td style={{ color: "#6b7280" }}>{g.instructor}</Td>
-                  <Td center>{g.prelim != null ? `${g.prelim}%` : "â€”"}</Td>
-                  <Td center>{g.midterm != null ? `${g.midterm}%` : "â€”"}</Td>
-                  <Td center>{g.final_exam != null ? `${g.final_exam}%` : "â€”"}</Td>
+                  <Td center>{g.prelim != null ? `${g.prelim}%` : "-"}</Td>
+                  <Td center>{g.midterm != null ? `${g.midterm}%` : "-"}</Td>
+                  <Td center>{g.final_exam != null ? `${g.final_exam}%` : "-"}</Td>
                   <Td center>
                     <span style={{ fontWeight: 900, fontSize: 15, color: gradeColor(g.final) }}>
-                      {g.final != null ? `${g.final}%` : "â€”"}
+                      {g.final != null ? `${g.final}%` : "-"}
                     </span>
                   </Td>
                   <Td center>
@@ -204,7 +240,7 @@ export default function StudentGradesPage() {
           </table>
 
           <div style={{ marginTop: 12, fontSize: 11, color: "#9ca3af" }}>
-            Final Grade = (Prelim Ã— 0.30) + (Midterm Ã— 0.30) + (Final Exam Ã— 0.40). Computed automatically by the system.
+            Final Grade = (Prelim x 0.30) + (Midterm x 0.30) + (Final Exam x 0.40). Computed automatically by the system.
           </div>
         </div>
       )}

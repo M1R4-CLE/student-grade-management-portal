@@ -139,12 +139,32 @@ export default function TeacherGradeEntryPage() {
 
     setSaving(prev => ({ ...prev, [row.studentId]: true }));
 
-    const { error } = await supabase
+    const gradePayload = {
+      course_id: Number(selectedId),
+      student_id: row.studentId,
+      prelim,
+      midterm,
+      final_exam,
+    };
+
+    let { error } = await supabase
       .from("grades")
-      .upsert(
-        { course_id: Number(selectedId), student_id: row.studentId, prelim, midterm, final_exam },
-        { onConflict: "course_id,student_id" }
-      );
+      .upsert(gradePayload, { onConflict: "course_id,student_id" });
+
+    // Fallback for broken DB trigger referencing NEW.updated_at on updates.
+    // This path rewrites the row using delete+insert so teachers can still edit grades.
+    if (error && String(error.message || "").toLowerCase().includes('record "new" has no field "updated_at"')) {
+      const { error: delErr } = await supabase
+        .from("grades")
+        .delete()
+        .eq("course_id", Number(selectedId))
+        .eq("student_id", row.studentId);
+
+      if (!delErr) {
+        const { error: insErr } = await supabase.from("grades").insert(gradePayload);
+        error = insErr || null;
+      }
+    }
 
     if (error) {
       setErr(error.message);

@@ -79,7 +79,7 @@ export default function NotificationsModal({
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          width: "min(560px, 95vw)",
+          width: "min(700px, 96vw)",
           background: "white",
           borderRadius: 18,
           boxShadow: "0 20px 60px rgba(0,0,0,.25)",
@@ -153,7 +153,7 @@ export default function NotificationsModal({
           </button>
         </div>
 
-        <div style={{ marginTop: 12, maxHeight: "60vh", overflow: "auto" }}>
+        <div style={{ marginTop: 12, maxHeight: "68vh", overflowY: "auto", overflowX: "hidden" }}>
           {!items?.length ? (
             <div style={{ padding: 14, color: "#6b7280" }}>No notifications.</div>
           ) : (
@@ -173,6 +173,7 @@ export default function NotificationsModal({
                   style={{
                     textAlign: "left",
                     width: "100%",
+                    boxSizing: "border-box",
                     borderRadius: 14,
                     border: "1px solid rgba(0,0,0,.08)",
                     background: n.read_at ? "white" : "rgba(47,111,179,.08)",

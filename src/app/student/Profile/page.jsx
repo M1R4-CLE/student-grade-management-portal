@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
@@ -77,14 +77,31 @@ export default function StudentProfilePage() {
 
   // For right-side cards
   const [finalGrades, setFinalGrades] = useState([]);
+  const [enrolledCourseCount, setEnrolledCourseCount] = useState(0);
 
-  const setMsg = (txt) => setMessage(txt || "");
+  const reloadAcademicStats = useCallback(async (studentId) => {
+    if (!studentId) return;
+    const [{ data: gradesData }, { data: enrollData }] = await Promise.all([
+      supabase.from("grades").select("final_grade").eq("student_id", studentId),
+      supabase.from("enrollments").select("course_id").eq("student_id", studentId),
+    ]);
+
+    const numeric = (gradesData || [])
+      .map((x) => Number(x.final_grade))
+      .filter((n) => Number.isFinite(n));
+    setFinalGrades(numeric);
+
+    const distinctEnrollments = Array.from(new Set((enrollData || []).map((x) => x.course_id).filter(Boolean)));
+    setEnrolledCourseCount(distinctEnrollments.length);
+  }, []);
+
+  const setMsg = useCallback((txt) => setMessage(txt || ""), []);
 
   const handleChange = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }));
   };
 
-  const refreshAvatarSignedUrl = async (path) => {
+  const refreshAvatarSignedUrl = useCallback(async (path) => {
     if (!path) {
       setAvatarUrl("");
       return;
@@ -97,7 +114,7 @@ export default function StudentProfilePage() {
       return;
     }
     setAvatarUrl(data?.signedUrl || "");
-  };
+  }, [setMsg]);
 
   useEffect(() => {
     const load = async () => {
@@ -180,23 +197,39 @@ export default function StudentProfilePage() {
         birthday: meta.birthday || "",
       });
 
-      const { data: gradesData } = await supabase
-        .from("grades")
-        .select("final_grade")
-        .eq("student_id", user.id);
-
-      // IMPORTANT: keep only valid numeric grades
-      const numeric = (gradesData || [])
-        .map((x) => Number(x.final_grade))
-        .filter((n) => Number.isFinite(n));
-
-      setFinalGrades(numeric);
+      await reloadAcademicStats(user.id);
 
       setLoading(false);
     };
 
     load();
-  }, [router]);
+  }, [router, reloadAcademicStats, refreshAvatarSignedUrl, setMsg]);
+
+  useEffect(() => {
+    if (!userId) return undefined;
+
+    const channel = supabase
+      .channel(`student-profile-stats-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "grades", filter: `student_id=eq.${userId}` },
+        () => {
+          reloadAcademicStats(userId);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "enrollments", filter: `student_id=eq.${userId}` },
+        () => {
+          reloadAcademicStats(userId);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, reloadAcademicStats]);
 
   const stats = useMemo(() => {
     const list = finalGrades || [];
@@ -226,11 +259,11 @@ export default function StudentProfilePage() {
       F: percent(buckets.F, count),
     };
 
-    const completedUnits = hasData ? count * 3 : 0;
-    const attendance = hasData ? 92 : 0; // adjust or set null if you add attendance later
+    const completedUnits = enrolledCourseCount * 3;
+    const attendance = null;
 
     return { avgFinal: avg, gpa, dist, completedUnits, attendance, hasData };
-  }, [finalGrades]);
+  }, [finalGrades, enrolledCourseCount]);
 
   const saveProfile = async () => {
     if (!userId) return;
@@ -448,7 +481,7 @@ export default function StudentProfilePage() {
           <div style={card}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ fontWeight: 900 }}>Academic Performance</div>
-              <div style={{ opacity: 0.6 }}>â€¢â€¢â€¢</div>
+              <div style={{ opacity: 0.6 }}>...</div>
             </div>
 
             {(() => {
@@ -480,13 +513,15 @@ export default function StudentProfilePage() {
                       </div>
                       <div style={{ textAlign: "right" }}>
                         Attendance
-                        <div style={{ fontWeight: 900, color: "#111827" }}>{stats.attendance}%</div>
+                        <div style={{ fontWeight: 900, color: "#111827" }}>
+                          {stats.attendance == null ? "-" : `${stats.attendance}%`}
+                        </div>
                       </div>
                     </div>
 
                     {!stats.hasData && (
                       <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
-                        (No grades yet â€” values will update once grades exist.)
+                        (No grades yet - values will update once grades exist.)
                       </div>
                     )}
                   </div>
@@ -499,7 +534,7 @@ export default function StudentProfilePage() {
           <div style={card}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div style={{ fontWeight: 900 }}>Grade Distribution</div>
-              <div style={{ opacity: 0.6 }}>â€¢â€¢â€¢</div>
+              <div style={{ opacity: 0.6 }}>...</div>
             </div>
 
             <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
@@ -530,7 +565,7 @@ export default function StudentProfilePage() {
 
               {!stats.hasData && (
                 <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
-                  (No grades yet â€” distribution will populate once grades exist.)
+                  (No grades yet - distribution will populate once grades exist.)
                 </div>
               )}
             </div>
