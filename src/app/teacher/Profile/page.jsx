@@ -147,7 +147,7 @@ export default function TeacherProfilePage() {
 
       {/* Header card */}
       <div style={card}>
-        <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
+        <div className="teacher-profile-header" style={{ display: "flex", gap: 20, alignItems: "center" }}>
           {/* Avatar */}
           <div style={avatarCircle}>
             {avatarUrl
@@ -155,12 +155,12 @@ export default function TeacherProfilePage() {
               : <span style={{ fontSize: 34 }}>👤</span>}
           </div>
 
-          <div style={{ flex: 1 }}>
-            <div style={{ fontWeight: 900, fontSize: 26 }}>{form.full_name || "Teacher"}</div>
-            <div style={{ fontSize: 17, color: "#6b7280", marginTop: 4 }}>
+          <div className="teacher-profile-main" style={{ flex: 1 }}>
+            <div className="teacher-profile-name" style={{ fontWeight: 900, fontSize: 26 }}>{form.full_name || "Teacher"}</div>
+            <div className="teacher-profile-role" style={{ fontSize: 17, color: "#6b7280", marginTop: 4 }}>
               {form.department || "Department not set"} · {form.job_title || "Teacher"}
             </div>
-            <div style={{ marginTop: 14, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+            <div className="teacher-profile-avatar-actions" style={{ marginTop: 14, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
               <button
                 onClick={() => { setMsg(""); if (fileRef.current) fileRef.current.click(); }}
                 disabled={avatarBusy}
@@ -179,29 +179,33 @@ export default function TeacherProfilePage() {
             </div>
           </div>
 
-          <button onClick={() => { setMsg(""); setEditing(p => !p); }} style={btnBlue}>
-            {editing ? "Cancel" : "Edit Profile"}
-          </button>
+          <div className="teacher-profile-actions">
+            <button className="teacher-profile-edit-btn" onClick={() => { setMsg(""); setEditing(p => !p); }} style={btnBlue}>
+              {editing ? "Cancel" : "Edit Profile"}
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Basic info */}
-      <Section title="Basic Information">
-        <Field label="Full Name"  value={form.full_name}  editing={editing} onChange={v => change("full_name",  v)} />
-        <Field label="Email"      value={form.email}       editing={editing} onChange={v => change("email",      v)} />
-        <Field label="Job Title"  value={form.job_title}  editing={editing} onChange={v => change("job_title",  v)} optional />
-        <Field label="Department" value={form.department} editing={editing} onChange={v => change("department", v)} optional />
-        <Field label="Company"    value={form.company}    editing={editing} onChange={v => change("company",    v)} optional />
-        <Field label="Pronoun"    value={form.pronoun}    editing={editing} onChange={v => change("pronoun",    v)} optional />
-      </Section>
+      <div className="teacher-profile-sections">
+        {/* Basic info */}
+        <Section className="teacher-profile-section-card" title="Basic Information">
+          <Field label="Full Name"  value={form.full_name}  editing={editing} onChange={v => change("full_name",  v)} />
+          <Field label="Email"      value={form.email}       editing={editing} onChange={v => change("email",      v)} />
+          <Field label="Job Title"  value={form.job_title}  editing={editing} onChange={v => change("job_title",  v)} optional />
+          <Field label="Department" value={form.department} editing={editing} onChange={v => change("department", v)} optional />
+          <Field label="Company"    value={form.company}    editing={editing} onChange={v => change("company",    v)} optional />
+          <Field label="Pronoun"    value={form.pronoun}    editing={editing} onChange={v => change("pronoun",    v)} optional />
+        </Section>
 
-      {/* Contact info */}
-      <Section title="Contact Information">
-        <Field label="Mailing Address" value={form.mailing_address} editing={editing} onChange={v => change("mailing_address", v)} optional />
-        <Field label="Phone Number"    value={form.phone_number}    editing={editing} onChange={v => change("phone_number",    v)} optional />
-        <Field label="Fax Number"      value={form.fax_number}      editing={editing} onChange={v => change("fax_number",      v)} optional />
-        <div />
-      </Section>
+        {/* Contact info */}
+        <Section className="teacher-profile-section-card" title="Contact Information">
+          <Field label="Mailing Address" value={form.mailing_address} editing={editing} onChange={v => change("mailing_address", v)} optional />
+          <Field label="Phone Number"    value={form.phone_number}    editing={editing} onChange={v => change("phone_number",    v)} optional />
+          <Field label="Fax Number"      value={form.fax_number}      editing={editing} onChange={v => change("fax_number",      v)} optional />
+          <div />
+        </Section>
+      </div>
 
       {/* Footer */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 2px", marginTop: 16 }}>
@@ -218,16 +222,69 @@ export default function TeacherProfilePage() {
           </button>
         )}
       </div>
+
+      <style jsx>{`
+        @media (max-width: 760px) {
+          .teacher-profile-header {
+            flex-direction: column;
+            align-items: center !important;
+            gap: 14px !important;
+          }
+
+          .teacher-profile-main {
+            width: 100%;
+            min-width: 0;
+            text-align: center;
+          }
+
+          .teacher-profile-name {
+            font-size: 34px !important;
+            line-height: 1.1;
+          }
+
+          .teacher-profile-role {
+            font-size: 15px !important;
+          }
+
+          .teacher-profile-actions {
+            width: 100%;
+          }
+
+          .teacher-profile-edit-btn {
+            width: 100%;
+            min-height: 42px;
+          }
+
+          .teacher-profile-avatar-actions {
+            width: 100%;
+            justify-content: center;
+          }
+
+          .teacher-profile-sections {
+            grid-template-columns: 1fr !important;
+            gap: 0 !important;
+          }
+
+          :global(.teacher-profile-section-card) {
+            margin-top: 14px !important;
+          }
+
+          :global(.teacher-profile-section-grid) {
+            grid-template-columns: 1fr !important;
+            gap: 14px !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }
 
 // ── Sub-components ───────────────────────────────────────────
-function Section({ title, children }) {
+function Section({ title, children, className = "" }) {
   return (
-    <div style={{ ...card, marginTop: 20 }}>
+    <div className={className} style={{ ...card, marginTop: 20 }}>
       <div style={{ fontWeight: 800, fontSize: 18, marginBottom: 16, color: "#2f6fb3" }}>{title}</div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px 34px" }}>
+      <div className="teacher-profile-section-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px 34px" }}>
         {children}
       </div>
     </div>
@@ -261,7 +318,7 @@ const card = {
   border:        "1px solid rgba(0,0,0,0.08)",
   borderRadius:  20,
   boxShadow:     "0 10px 24px rgba(0,0,0,0.08)",
-  padding:       "30px 32px",
+  padding:       "24px 26px",
 };
 
 const avatarCircle = {

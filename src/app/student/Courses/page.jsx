@@ -150,28 +150,21 @@ export default function StudentCoursesPage() {
   }, [courses, searchTerm]);
 
   const totalPages = Math.max(1, Math.ceil(filteredCourses.length / pageSize));
-
-  useEffect(() => {
-    setPage(1);
-  }, [searchTerm]);
-
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [page, totalPages]);
+  const currentPage = Math.min(page, totalPages);
 
   const visibleCourses = useMemo(() => {
-    const start = (page - 1) * pageSize;
+    const start = (currentPage - 1) * pageSize;
     return filteredCourses.slice(start, start + pageSize);
-  }, [filteredCourses, page]);
+  }, [filteredCourses, currentPage]);
 
   const goPrev = () => {
-    if (page === 1) return;
+    if (currentPage === 1) return;
     setDirection(-1);
     setPage((prev) => Math.max(1, prev - 1));
   };
 
   const goNext = () => {
-    if (page === totalPages) return;
+    if (currentPage === totalPages) return;
     setDirection(1);
     setPage((prev) => Math.min(totalPages, prev + 1));
   };
@@ -181,6 +174,7 @@ export default function StudentCoursesPage() {
   return (
     <div style={{ minHeight: "100%", display: "flex", flexDirection: "column" }}>
       <div
+        className="courses-toolbar"
         style={{
           display: "flex",
           alignItems: "center",
@@ -190,14 +184,18 @@ export default function StudentCoursesPage() {
           flexWrap: "wrap",
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          <h1 style={{ margin: 0, fontSize: 40, lineHeight: 1.1, fontWeight: 800, color: "#111827" }}>
+        <div className="courses-title-row" style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <h1 className="courses-title" style={{ margin: 0, fontSize: 40, lineHeight: 1.1, fontWeight: 800, color: "#111827" }}>
             My Courses
           </h1>
 
           <input
+            className="courses-search-input"
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              setSearchTerm(e.target.value);
+              setPage(1);
+            }}
             placeholder="Search course"
             style={{
               width: 280,
@@ -207,7 +205,7 @@ export default function StudentCoursesPage() {
               background: "#ffffff",
               minHeight: 40,
               padding: "0 14px",
-              fontSize: 26,
+              fontSize: 16,
               color: "#222",
               outline: "none",
             }}
@@ -215,6 +213,7 @@ export default function StudentCoursesPage() {
         </div>
 
         <select
+          className="courses-year"
           value={schoolYear}
           onChange={(e) => setSchoolYear(e.target.value)}
           style={{
@@ -292,6 +291,7 @@ export default function StudentCoursesPage() {
 
                   <div style={{ marginTop: 12, color: "#2f2f2f" }}>
                     <div
+                      className="courses-card-title"
                       style={{
                         fontSize: 28,
                         fontWeight: 600,
@@ -303,13 +303,14 @@ export default function StudentCoursesPage() {
                     >
                       {course?.title || "Class Name"}
                     </div>
-                    <div style={{ fontSize: 25, marginTop: 4 }}>
+                    <div className="courses-card-code" style={{ fontSize: 25, marginTop: 4 }}>
                       Class Code: {course?.code || "CLS-001"}
                     </div>
                   </div>
 
-                  <div style={{ display: "flex", gap: 10, marginTop: "auto", paddingTop: 10 }}>
+                  <div className="courses-actions" style={{ display: "flex", gap: 10, marginTop: "auto", paddingTop: 10 }}>
                     <button
+                      className="courses-action-btn"
                       type="button"
                       onClick={() =>
                         router.push(
@@ -336,6 +337,7 @@ export default function StudentCoursesPage() {
                     </button>
 
                     <button
+                      className="courses-action-btn"
                       type="button"
                       onClick={() => router.push("/student/messages")}
                       style={{
@@ -362,11 +364,11 @@ export default function StudentCoursesPage() {
         </div>
       </div>
 
-      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
+      <div className="courses-pagination-wrap" style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
         <div style={{ display: "flex", gap: 6 }}>
           <button
             onClick={goPrev}
-            disabled={page === 1}
+            disabled={currentPage === 1}
             style={{
               border: "1px solid rgba(0,0,0,0.08)",
               background: "#ffffff",
@@ -375,8 +377,8 @@ export default function StudentCoursesPage() {
               minWidth: 86,
               fontSize: 13,
               color: "#4a4a4a",
-              cursor: page === 1 ? "not-allowed" : "pointer",
-              opacity: page === 1 ? 0.55 : 1,
+              cursor: currentPage === 1 ? "not-allowed" : "pointer",
+              opacity: currentPage === 1 ? 0.55 : 1,
             }}
           >
             Previous
@@ -393,12 +395,12 @@ export default function StudentCoursesPage() {
               color: "#4a4a4a",
             }}
           >
-            {page}
+            {currentPage}
           </button>
 
           <button
             onClick={goNext}
-            disabled={page === totalPages}
+            disabled={currentPage === totalPages}
             style={{
               border: "1px solid rgba(0,0,0,0.08)",
               background: "#ffffff",
@@ -407,8 +409,8 @@ export default function StudentCoursesPage() {
               minWidth: 62,
               fontSize: 13,
               color: "#4a4a4a",
-              cursor: page === totalPages ? "not-allowed" : "pointer",
-              opacity: page === totalPages ? 0.55 : 1,
+              cursor: currentPage === totalPages ? "not-allowed" : "pointer",
+              opacity: currentPage === totalPages ? 0.55 : 1,
             }}
           >
             Next
@@ -430,6 +432,47 @@ export default function StudentCoursesPage() {
         }
 
         @media (max-width: 700px) {
+          .courses-toolbar {
+            align-items: stretch !important;
+          }
+
+          .courses-title-row {
+            width: 100%;
+            gap: 10px !important;
+          }
+
+          .courses-title {
+            width: 100%;
+            font-size: 28px !important;
+          }
+
+          .courses-search-input,
+          .courses-year {
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+
+          .courses-card-title {
+            font-size: 20px !important;
+          }
+
+          .courses-card-code {
+            font-size: 18px !important;
+          }
+
+          .courses-actions {
+            flex-wrap: wrap;
+            gap: 8px !important;
+          }
+
+          .courses-action-btn {
+            flex: 1 1 140px;
+          }
+
+          .courses-pagination-wrap {
+            justify-content: center !important;
+          }
+
           .student-courses-grid {
             grid-template-columns: 1fr;
           }

@@ -50,7 +50,7 @@ function NavIcon({ Icon, active }) {
   );
 }
 
-export default function AppSidebar({ role = "student" }) {
+export default function AppSidebar({ role = "student", mobile = false, onNavigate }) {
   const pathname = usePathname();
 
   const links =
@@ -75,11 +75,11 @@ export default function AppSidebar({ role = "student" }) {
   return (
     <aside
       style={{
-        width: 292,
-        minWidth: 292,
+        width: mobile ? "100%" : 292,
+        minWidth: mobile ? 0 : 292,
         height: "100%",
         background: "var(--sidebar-bg)",
-        borderRight: "1px solid #C9C9C9",
+        borderRight: mobile ? "none" : "1px solid #C9C9C9",
         borderRadius: "var(--radius-lg)",
         boxShadow: "var(--shadow-soft)",
         padding: 18,
@@ -99,7 +99,12 @@ export default function AppSidebar({ role = "student" }) {
           const Icon = l.icon;
 
           return (
-            <Link key={l.href} href={l.href} style={baseItemStyle(active)}>
+            <Link
+              key={l.href}
+              href={l.href}
+              style={baseItemStyle(active)}
+              onClick={() => onNavigate?.()}
+            >
               <NavIcon Icon={Icon} active={active} />
               {l.label}
             </Link>

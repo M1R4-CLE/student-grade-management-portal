@@ -743,10 +743,11 @@ export default function TeacherClassManagementPage() {
             Edit Course
           </div>
 
-          <div style={editGrid}>
-            <div>
+          <div className="edit-grid" style={editGrid}>
+            <div className="edit-cell">
               <div style={editLabel}>Course Title</div>
               <input
+                className="edit-input"
                 value={editForm.title}
                 onChange={e => setEditForm(prev => ({ ...prev, title: e.target.value }))}
                 style={inputStyle}
@@ -754,9 +755,10 @@ export default function TeacherClassManagementPage() {
               />
             </div>
 
-            <div>
+            <div className="edit-cell">
               <div style={editLabel}>Course Code</div>
               <input
+                className="edit-input"
                 value={editForm.code}
                 onChange={e => setEditForm(prev => ({ ...prev, code: e.target.value }))}
                 style={inputStyle}
@@ -764,9 +766,10 @@ export default function TeacherClassManagementPage() {
               />
             </div>
 
-            <div>
+            <div className="edit-cell">
               <div style={editLabel}>Cover Page</div>
               <input
+                className="edit-file-input"
                 type="file"
                 accept="image/png,image/jpeg,image/jpg,image/webp"
                 onChange={e => onCoverSelected(e.target.files?.[0])}
@@ -779,9 +782,9 @@ export default function TeacherClassManagementPage() {
               )}
             </div>
 
-            <div>
+            <div className="edit-cell">
               <div style={editLabel}>Students</div>
-              <div style={studentListBox}>
+              <div className="edit-student-list" style={studentListBox}>
                 {rosterLoading ? (
                   <div style={{ color: "#6b7280", fontSize: 13 }}>Loading students...</div>
                 ) : roster.length === 0 ? (
@@ -1050,6 +1053,45 @@ export default function TeacherClassManagementPage() {
       .classMgmtScroll::-webkit-scrollbar {
         width: 0;
         height: 0;
+      }
+
+      .edit-grid {
+        width: 100%;
+      }
+
+      .edit-cell {
+        min-width: 0;
+      }
+
+      .edit-input {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        display: block;
+      }
+
+      .edit-file-input {
+        width: 100%;
+        max-width: 100%;
+      }
+
+      .edit-student-list {
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      @media (max-width: 900px) {
+        .edit-grid {
+          grid-template-columns: 1fr !important;
+          gap: 12px !important;
+        }
+      }
+
+      @media (max-width: 640px) {
+        .edit-student-list {
+          max-height: 150px;
+        }
       }
     `}</style>
     </>

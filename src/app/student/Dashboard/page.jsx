@@ -186,7 +186,7 @@ export default function StudentDashboardPage() {
       {/* ── Grade Summary Banner (only shown when grades exist) ── */}
       {grades.length > 0 && (
         <div
-          className="glassCard"
+          className="glassCard dashboard-summary"
           style={{ marginTop: 14, padding: 14, display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}
         >
           {/* Overall avg */}
@@ -212,6 +212,7 @@ export default function StudentDashboardPage() {
             {grades.map((g, i) => (
               <div
                 key={i}
+                className="dashboard-grade-chip"
                 style={{
                   background: "rgba(255,255,255,0.85)",
                   border: "1px solid rgba(0,0,0,0.08)",
@@ -252,6 +253,7 @@ export default function StudentDashboardPage() {
           </div>
 
           <button
+            className="dashboard-view-grades"
             onClick={() => router.push("/student/Grades")}
             style={{
               alignSelf: "center",
@@ -276,6 +278,7 @@ export default function StudentDashboardPage() {
           {/* Prev button */}
           {featured.length > 1 && (
             <button
+              className="dashboard-carousel-nav"
               onClick={prev}
               aria-label="Previous"
               style={{
@@ -292,6 +295,7 @@ export default function StudentDashboardPage() {
           {/* Next button */}
           {featured.length > 1 && (
             <button
+              className="dashboard-carousel-nav"
               onClick={next}
               aria-label="Next"
               style={{
@@ -382,7 +386,7 @@ export default function StudentDashboardPage() {
 
         <select
           className="yearPill"
-          style={{ width: 200 }}
+          style={{ width: "min(200px, 100%)" }}
           defaultValue="2025-2026 COLLEGE"
         >
           <option>2025-2026 COLLEGE</option>
@@ -420,6 +424,28 @@ export default function StudentDashboardPage() {
           My Courses →
         </button>
       </div>
+
+      <style jsx>{`
+        @media (max-width: 700px) {
+          .dashboard-summary {
+            gap: 12px !important;
+          }
+
+          .dashboard-grade-chip {
+            width: 100%;
+            min-width: 0 !important;
+          }
+
+          .dashboard-view-grades {
+            width: 100%;
+            align-self: stretch !important;
+          }
+
+          .dashboard-carousel-nav {
+            display: none;
+          }
+        }
+      `}</style>
 
       {/* ── Logout Modal ── */}
       {showLogout && (
