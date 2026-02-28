@@ -56,19 +56,19 @@ export default function AppSidebar({ role = "student", mobile = false, onNavigat
   const links =
     role === "teacher"
       ? [
-          { label: "Home Page", href: "/teacher/Dashboard", icon: LayoutDashboard },
-          { label: "Class Management", href: "/teacher/Class-Management", icon: ClipboardList },
-          { label: "Grade Entry", href: "/teacher/Grade-Entry", icon: PencilRuler },
+          { label: "Home Page", href: "/teacher/dashboard", icon: LayoutDashboard },
+          { label: "Class Management", href: "/teacher/class-management", icon: ClipboardList },
+          { label: "Grade Entry", href: "/teacher/grade-entry", icon: PencilRuler },
           { label: "Messages", href: "/teacher/messages", icon: MessageSquare },
-          { label: "Profile", href: "/teacher/Profile", icon: User },
+          { label: "Profile", href: "/teacher/profile", icon: User },
           
         ]
       : [
-          { label: "Home Page", href: "/student/Dashboard", icon: Home },
-          { label: "My Courses", href: "/student/Courses", icon: BookOpen },
+          { label: "Home Page", href: "/student/dashboard", icon: Home },
+          { label: "My Courses", href: "/student/courses", icon: BookOpen },
           { label: "Messages", href: "/student/messages", icon: MessageSquare },
-          { label: "My Grades", href: "/student/Grades", icon: BarChart3 },
-          { label: "Profile", href: "/student/Profile", icon: User },
+          { label: "My Grades", href: "/student/grades", icon: BarChart3 },
+          { label: "Profile", href: "/student/profile", icon: User },
           
         ];
 

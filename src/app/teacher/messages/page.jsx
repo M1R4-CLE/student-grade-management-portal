@@ -84,11 +84,12 @@ export default function TeacherMessagesPage() {
 
       const { data: profile } = await supabase
         .from("profiles").select("role").eq("id", user.id).single();
-      if (!profile || profile.role !== "teacher") { router.replace("/student/Dashboard"); return; }
+      const role = String(profile?.role || "").trim().toLowerCase();
+      if (!profile || role !== "teacher") { router.replace("/student/dashboard"); return; }
 
       if (alive) {
         setUserId(user.id);
-        setMyRole(profile.role);
+        setMyRole(role);
         setLoading(false);
       }
       await loadMessages(user.id);

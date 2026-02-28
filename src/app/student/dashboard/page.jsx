@@ -86,8 +86,9 @@ export default function StudentDashboardPage() {
       .eq("id", user.id)
       .single();
 
-      if (!profile || profile.role !== "student") {
-        router.replace("/teacher/Dashboard");
+      const role = String(profile?.role || "").trim().toLowerCase();
+      if (!profile || role !== "student") {
+        router.replace("/teacher/dashboard");
         return;
       }
 
@@ -287,7 +288,7 @@ export default function StudentDashboardPage() {
 
           <button
             className="dashboard-view-grades"
-            onClick={() => router.push("/student/Grades")}
+            onClick={() => router.push("/student/grades")}
             style={{
               alignSelf: "center",
               padding: "8px 16px",
@@ -452,7 +453,7 @@ export default function StudentDashboardPage() {
         <button
           className="ghost"
           style={{ fontWeight: 800 }}
-          onClick={() => router.push("/student/Courses")}
+          onClick={() => router.push("/student/courses")}
         >
           My Courses →
         </button>

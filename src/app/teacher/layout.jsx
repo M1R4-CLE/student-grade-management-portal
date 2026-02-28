@@ -5,6 +5,24 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 import PageShell from "@/components/PageShell";
 
+async function resolveCurrentUser() {
+  const { data: sessionData } = await supabase.auth.getSession();
+  let user = sessionData?.session?.user || null;
+  if (user) return user;
+
+  const { data: userData } = await supabase.auth.getUser();
+  user = userData?.user || null;
+  if (user) return user;
+
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  const { data: retrySessionData } = await supabase.auth.getSession();
+  user = retrySessionData?.session?.user || null;
+  if (user) return user;
+
+  const { data: retryUserData } = await supabase.auth.getUser();
+  return retryUserData?.user || null;
+}
+
 function fmtWhen(dueAt, kind) {
   const d = new Date(dueAt);
   const date = d.toLocaleDateString("en-US", { month: "short", day: "2-digit" });
@@ -25,8 +43,7 @@ export default function TeacherLayout({ children }) {
     const run = async () => {
       setLoading(true);
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData?.session?.user;
+      const user = await resolveCurrentUser();
 
       if (!user) {
         router.replace("/login");
@@ -44,8 +61,9 @@ export default function TeacherLayout({ children }) {
         return;
       }
 
-      if (profile.role !== "teacher") {
-        router.replace("/student/Dashboard");
+      const role = String(profile.role || "").trim().toLowerCase();
+      if (role !== "teacher") {
+        router.replace("/student/dashboard");
         return;
       }
 

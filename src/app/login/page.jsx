@@ -19,7 +19,7 @@ export default function LoginPage() {
     setErr("");
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: signInData, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -30,8 +30,11 @@ export default function LoginPage() {
       return;
     }
 
-    const { data: sessionData } = await supabase.auth.getSession();
-    const user = sessionData?.session?.user;
+    let user = signInData?.user || signInData?.session?.user || null;
+    if (!user) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      user = sessionData?.session?.user || null;
+    }
 
     if (!user) {
       setErr("No session created. Try again.");
@@ -51,11 +54,8 @@ export default function LoginPage() {
       return;
     }
 
-    router.replace(
-      profile.role === "teacher"
-        ? "/teacher/Dashboard"
-        : "/student/Dashboard"
-    );
+    const role = String(profile.role || "").trim().toLowerCase();
+    router.replace(role === "teacher" ? "/teacher/dashboard" : "/student/dashboard");
   };
 
   return (

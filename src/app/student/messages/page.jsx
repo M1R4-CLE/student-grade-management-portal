@@ -129,13 +129,14 @@ export default function StudentMessagesPage() {
         return;
       }
 
-      if (!profile || profile.role !== "student") {
-        router.replace("/teacher/Dashboard");
+      const role = String(profile?.role || "").trim().toLowerCase();
+      if (!profile || role !== "student") {
+        router.replace("/teacher/dashboard");
         return;
       }
 
       setUserId(user.id);
-      setMyRole(profile.role);
+      setMyRole(role);
       await loadMessages(user.id);
 
       channelA = supabase

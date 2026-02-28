@@ -48,8 +48,9 @@ export default function TeacherGradeEntryPage() {
         .eq("id", user.id)
         .single();
 
-      if (!profile || profile.role !== "teacher") {
-        router.replace("/student/Dashboard");
+      const role = String(profile?.role || "").trim().toLowerCase();
+      if (!profile || role !== "teacher") {
+        router.replace("/student/dashboard");
         return;
       }
       setTeacherId(user.id);
@@ -185,7 +186,7 @@ export default function TeacherGradeEntryPage() {
         type: "grade",
         title: "Grade updated",
         body: `${selectedCourse?.code || "Course"}: ${selectedCourse?.title || "Course"} - Final Grade: ${finalGrade}%`,
-        link: `/student/Grades?course=${encodeURIComponent(selectedCourse?.code || "")}`,
+        link: `/student/grades?course=${encodeURIComponent(selectedCourse?.code || "")}`,
       };
       const { error: notifError } = await supabase.from("notifications").insert(notifPayload);
       if (notifError) {

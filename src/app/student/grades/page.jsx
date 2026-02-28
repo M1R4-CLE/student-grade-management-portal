@@ -49,7 +49,8 @@ export default function StudentGradesPage() {
         .single();
 
       if (pErr || !profile) { router.replace("/login"); return; }
-      if (profile.role !== "student") { router.replace("/teacher/Dashboard"); return; }
+      const role = String(profile.role || "").trim().toLowerCase();
+      if (role !== "student") { router.replace("/teacher/dashboard"); return; }
 
       const { data: enrollRows, error: enrollErr } = await supabase
         .from("enrollments")

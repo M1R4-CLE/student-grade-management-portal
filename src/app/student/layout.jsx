@@ -44,8 +44,9 @@ export default function StudentLayout({ children }) {
         return;
       }
 
-      if (profile.role !== "student") {
-        router.replace("/teacher/Dashboard");
+      const role = String(profile.role || "").trim().toLowerCase();
+      if (role !== "student") {
+        router.replace("/teacher/dashboard");
         return;
       }
 

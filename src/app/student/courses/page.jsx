@@ -97,7 +97,8 @@ export default function StudentCoursesPage() {
         .single();
 
       if (pErr || !profile) { router.replace("/login"); return; }
-      if (profile.role !== "student") { router.replace("/teacher/Dashboard"); return; }
+      const role = String(profile.role || "").trim().toLowerCase();
+      if (role !== "student") { router.replace("/teacher/dashboard"); return; }
 
       const withCover = await supabase
         .from("enrollments")
@@ -322,7 +323,7 @@ export default function StudentCoursesPage() {
                       type="button"
                       onClick={() =>
                         router.push(
-                          `/student/Grades?course=${encodeURIComponent(course?.code || "")}&title=${encodeURIComponent(
+                          `/student/grades?course=${encodeURIComponent(course?.code || "")}&title=${encodeURIComponent(
                             course?.title || ""
                           )}`
                         )

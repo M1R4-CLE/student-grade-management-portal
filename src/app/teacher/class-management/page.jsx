@@ -79,8 +79,9 @@ export default function TeacherClassManagementPage() {
         .eq("id", user.id)
         .single();
 
-      if (!profile || profile.role !== "teacher") {
-        router.replace("/student/Dashboard");
+      const role = String(profile?.role || "").trim().toLowerCase();
+      if (!profile || role !== "teacher") {
+        router.replace("/student/dashboard");
         return;
       }
 
@@ -1056,7 +1057,7 @@ export default function TeacherClassManagementPage() {
                       cursor: "pointer",
                     }}
                     onClick={() => setActiveRosterStudent(s)}
-                    onDoubleClick={() => router.push(`/teacher/Grade-Entry?courseId=${selectedCourse.id}&studentId=${s.studentId}`)}
+                    onDoubleClick={() => router.push(`/teacher/grade-entry?courseId=${selectedCourse.id}&studentId=${s.studentId}`)}
                     title="Click to preview student, double-click to open Grade Entry"
                   >
                     <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
@@ -1095,7 +1096,7 @@ export default function TeacherClassManagementPage() {
                           cursor: "pointer",
                         }}
                         onClick={() => setActiveRosterStudent(s)}
-                        onDoubleClick={() => router.push(`/teacher/Grade-Entry?courseId=${selectedCourse.id}&studentId=${s.studentId}`)}
+                        onDoubleClick={() => router.push(`/teacher/grade-entry?courseId=${selectedCourse.id}&studentId=${s.studentId}`)}
                         title="Click to preview student, double-click to open Grade Entry"
                       >
                         <td style={td}>{i + 1}</td>

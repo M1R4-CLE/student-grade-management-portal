@@ -181,7 +181,7 @@ export default function StudentProfilePage() {
       }
 
       if (profile?.role === "teacher") {
-        router.replace("/teacher/Dashboard");
+        router.replace("/teacher/dashboard");
         return;
       }
 

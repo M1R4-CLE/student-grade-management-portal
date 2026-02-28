@@ -10,6 +10,24 @@ import { supabase } from "@/app/lib/supabaseClient";
 
 const PAGE_SIZE = 6;
 
+async function resolveCurrentUser() {
+  const { data: sessionData } = await supabase.auth.getSession();
+  let user = sessionData?.session?.user || null;
+  if (user) return user;
+
+  const { data: userData } = await supabase.auth.getUser();
+  user = userData?.user || null;
+  if (user) return user;
+
+  await new Promise((resolve) => setTimeout(resolve, 220));
+  const { data: retrySessionData } = await supabase.auth.getSession();
+  user = retrySessionData?.session?.user || null;
+  if (user) return user;
+
+  const { data: retryUserData } = await supabase.auth.getUser();
+  return retryUserData?.user || null;
+}
+
 export default function TeacherDashboardPage() {
   const router = useRouter();
 
@@ -50,8 +68,7 @@ export default function TeacherDashboardPage() {
     const run = async () => {
       setLoading(true);
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const user = sessionData?.session?.user;
+      const user = await resolveCurrentUser();
       if (!user) { router.replace("/login"); return; }
 
       const { data: profile } = await supabase
@@ -60,8 +77,9 @@ export default function TeacherDashboardPage() {
         .eq("id", user.id)
         .single();
 
-      if (!profile || profile.role !== "teacher") {
-        router.replace("/student/Dashboard");
+      const role = String(profile?.role || "").trim().toLowerCase();
+      if (!profile || role !== "teacher") {
+        router.replace("/student/dashboard");
         return;
       }
       if (!cancelled) setTeacherName(profile.full_name || "Teacher");
@@ -259,7 +277,7 @@ export default function TeacherDashboardPage() {
             <div
               key={c.id}
               className="courseCardImg"
-              onClick={() => router.push("/teacher/ClassManagement")}
+              onClick={() => router.push("/teacher/class-management")}
             >
               {c.cover_url ? (
                 <>

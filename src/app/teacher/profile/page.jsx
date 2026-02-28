@@ -71,7 +71,8 @@ export default function TeacherProfilePage() {
         .single();
 
       if (error || !profile) { router.replace("/login"); return; }
-      if (profile.role !== "teacher") { router.replace("/student/Dashboard"); return; }
+      const role = String(profile.role || "").trim().toLowerCase();
+      if (role !== "teacher") { router.replace("/student/dashboard"); return; }
 
       setAvatarPath(profile.avatar_path || "");
       if (profile.avatar_path) await refreshUrl(profile.avatar_path);
