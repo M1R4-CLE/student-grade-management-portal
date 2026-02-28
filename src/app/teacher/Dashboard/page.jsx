@@ -21,6 +21,29 @@ export default function TeacherDashboardPage() {
   const [idx, setIdx]           = useState(0);
   const [teacherName, setTeacherName] = useState("Teacher");
 
+  const toSignedCoverUrl = async (path, mode = "card") => {
+    if (!path) return "";
+
+    const transform =
+      mode === "featured"
+        ? { width: 640, height: 360, resize: "cover", quality: 72 }
+        : { width: 480, height: 270, resize: "cover", quality: 68 };
+
+    const transformed = await supabase.storage
+      .from("course-covers")
+      .createSignedUrl(path, 1800, { transform });
+
+    if (!transformed.error && transformed.data?.signedUrl) {
+      return transformed.data.signedUrl;
+    }
+
+    const fallback = await supabase.storage
+      .from("course-covers")
+      .createSignedUrl(path, 1800);
+
+    return fallback.data?.signedUrl || "";
+  };
+
   useEffect(() => {
     let cancelled = false;
 
@@ -65,11 +88,14 @@ export default function TeacherDashboardPage() {
       const mapped = await Promise.all(
         (coursesData || []).map(async c => {
           let cover_url = "";
+          let cover_feature_url = "";
           if (c.cover_path) {
-            const { data } = await supabase.storage.from("course-covers").createSignedUrl(c.cover_path, 1800);
-            cover_url = data?.signedUrl || "";
+            [cover_url, cover_feature_url] = await Promise.all([
+              toSignedCoverUrl(c.cover_path, "card"),
+              toSignedCoverUrl(c.cover_path, "featured"),
+            ]);
           }
-          return { ...c, cover_url };
+          return { ...c, cover_url, cover_feature_url };
         })
       );
       setCourses(mapped);
@@ -155,10 +181,15 @@ export default function TeacherDashboardPage() {
             <button onClick={next} aria-label="Next" style={arrowBtn("right")}>{">"}</button>
           )}
 
-          <div className="featuredWrap">
+          <div className="featuredWrap teacherFeaturedWrap">
             <div className="featuredImg">
-              {item.cover_url ? (
-                <img src={item.cover_url} alt={item.title} />
+              {item.cover_feature_url || item.cover_url ? (
+                <img
+                  src={item.cover_feature_url || item.cover_url}
+                  alt={item.title}
+                  loading="eager"
+                  decoding="async"
+                />
               ) : (
                 <div style={noCoverFeatured}>No cover yet</div>
               )}
@@ -170,13 +201,6 @@ export default function TeacherDashboardPage() {
               <div style={{ marginTop: 10, fontSize: 12, color: "#6b7280" }}>
                 Click "Class Management" to manage students.
               </div>
-            </div>
-            <div className="featuredImg">
-              {(featured[(idx + 1) % featured.length]?.cover_url || item.cover_url) ? (
-                <img src={featured[(idx + 1) % featured.length]?.cover_url || item.cover_url} alt="next" />
-              ) : (
-                <div style={noCoverFeatured}>No cover yet</div>
-              )}
             </div>
           </div>
 
@@ -239,7 +263,7 @@ export default function TeacherDashboardPage() {
             >
               {c.cover_url ? (
                 <>
-                  <img src={c.cover_url} alt={c.title} />
+                  <img src={c.cover_url} alt={c.title} loading="lazy" decoding="async" />
                   <div className="courseOverlay">
                     <div className="courseOverlayText">
                       <div style={{ fontSize: 11, opacity: 0.8, fontWeight: 700 }}>{c.code}</div>
@@ -292,6 +316,18 @@ export default function TeacherDashboardPage() {
           </button>
         </div>
       )}
+
+      <style jsx>{`
+        .teacherFeaturedWrap {
+          grid-template-columns: 160px 1fr !important;
+        }
+
+        @media (max-width: 700px) {
+          .teacherFeaturedWrap {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
     </>
   );
 }
@@ -330,4 +366,3 @@ const noCoverCard = {
   justifyContent: "flex-end",
   background: "linear-gradient(135deg, #f8fafc 0%, #eef2f7 100%)",
 };
-

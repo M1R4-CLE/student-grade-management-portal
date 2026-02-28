@@ -46,6 +46,15 @@ export default function StudentMessagesPage() {
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState([]);
   const openId = searchParams.get("open");
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 700px)");
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   useEffect(() => {
     let channelA;
@@ -496,13 +505,100 @@ export default function StudentMessagesPage() {
 
   if (loading) return <div style={{ padding: 20 }}>Loading...</div>;
 
-  return (
-    <div style={wrap}>
-      {toast && <div style={toastStyle}>{toast}</div>}
-      <div style={card}>
-        <div style={title}>Message Inbox</div>
+  const wrapStyle = isMobile
+    ? { ...wrap, padding: 10 }
+    : wrap;
+  const cardStyle = isMobile
+    ? { ...card, padding: 12, borderRadius: 12, minHeight: 0, maxWidth: "100%", overflow: "hidden" }
+    : card;
+  const titleStyle = isMobile ? { ...title, fontSize: 34 } : title;
+  const topBarStyle = isMobile
+      ? {
+          ...topBar,
+          display: "grid",
+          gridTemplateColumns: "minmax(0, 1fr) minmax(118px, 0.9fr)",
+          columnGap: 8,
+          rowGap: 8,
+          alignItems: "stretch",
+        }
+    : topBar;
+  const composeBtnStyle = isMobile ? { ...composeBtn, width: "100%", minWidth: 0, height: 38, boxSizing: "border-box" } : composeBtn;
+  const selectAllStyle = isMobile
+    ? {
+        ...selectAll,
+        width: "100%",
+        minWidth: 0,
+        justifyContent: "center",
+        fontSize: 10,
+        padding: "0 8px",
+        gap: 6,
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        boxSizing: "border-box",
+      }
+    : selectAll;
+  const selectAllTextStyle = isMobile
+    ? { marginLeft: 0, overflow: "hidden", textOverflow: "ellipsis" }
+    : { marginLeft: 8 };
+  const topSpacerStyle = isMobile ? { display: "none" } : { flex: 1 };
+  const searchWrapStyle = isMobile
+    ? { ...searchWrap, width: "100%", minWidth: 0, maxWidth: "100%", gridColumn: "1 / -1", height: 36, boxSizing: "border-box" }
+    : searchWrap;
+  const searchInputStyle = isMobile
+    ? { ...searchInput, fontSize: 13, minWidth: 0 }
+    : searchInput;
+  const pageSelectStyle = isMobile
+    ? { ...pageSelect, width: "100%", minWidth: 0, height: 36, gridColumn: "1 / -1" }
+    : pageSelect;
+  const bodyGridStyle = isMobile
+    ? { ...bodyGrid, gridTemplateColumns: "1fr", gap: 10 }
+    : bodyGrid;
+  const foldersStyle = isMobile
+    ? { ...folders, display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, paddingTop: 0 }
+    : folders;
+  const folderBtnStyle = isMobile
+    ? { ...folderBtn, marginBottom: 0, height: 36, textAlign: "center", padding: "0 8px", fontSize: 13 }
+    : folderBtn;
+  const listAreaStyle = isMobile
+    ? {
+        ...listArea,
+        minHeight: 240,
+        border: "1px solid #e5e7eb",
+        borderRadius: 10,
+        padding: 8,
+        background: "#fff",
+        overflowX: "hidden",
+      }
+    : listArea;
+  const rowStyle = isMobile
+    ? { ...row, gridTemplateColumns: "28px 1fr", gap: 8, minHeight: 56, padding: "8px 0" }
+    : row;
+  const senderStyle = isMobile ? { ...sender, fontSize: 13 } : sender;
+  const subjectLineStyle = isMobile
+    ? {
+        ...subjectLine,
+        fontSize: 12,
+        gridColumn: "2 / 3",
+        whiteSpace: "normal",
+        overflow: "hidden",
+        display: "-webkit-box",
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: "vertical",
+      }
+    : subjectLine;
+  const footerBarStyle = isMobile
+    ? { ...footerBar, flexDirection: "column", alignItems: "stretch", gap: 8 }
+    : footerBar;
+  const trashBtnStyle = isMobile ? { ...trashBtn, width: "100%", height: 34 } : trashBtn;
+  const shownStyle = isMobile ? { ...shown, textAlign: "center" } : shown;
 
-        <div style={topBar}>
+  return (
+    <div style={wrapStyle}>
+      {toast && <div style={toastStyle}>{toast}</div>}
+      <div style={cardStyle}>
+        <div style={titleStyle}>Message Inbox</div>
+
+        <div style={topBarStyle}>
           <button
             onClick={async () => {
               setComposeSubject("");
@@ -510,38 +606,38 @@ export default function StudentMessagesPage() {
               setComposeOpen(true);
               await loadRecipients();
             }}
-            style={composeBtn}
+            style={composeBtnStyle}
             type="button"
           >
             COMPOSE
           </button>
 
-          <label style={selectAll}>
+          <label style={selectAllStyle}>
             <input type="checkbox" checked={allChecked} onChange={toggleSelectAll} />
-            <span style={{ marginLeft: 8 }}>SELECT ALL</span>
+            <span style={selectAllTextStyle}>SELECT ALL</span>
           </label>
 
-          <div style={{ flex: 1 }} />
+          <div style={topSpacerStyle} />
 
-          <div style={searchWrap}>
+          <div style={searchWrapStyle}>
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search for.."
-              style={searchInput}
+              style={searchInputStyle}
             />
             <span style={searchIcon}></span>
           </div>
 
-          <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} style={pageSelect}>
+          <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} style={pageSelectStyle}>
             <option value={20}>20</option>
             <option value={10}>10</option>
             <option value={5}>5</option>
           </select>
         </div>
 
-        <div style={bodyGrid}>
-          <div style={folders}>
+        <div style={bodyGridStyle}>
+          <div style={foldersStyle}>
             <Folder
               label={
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", width: "100%" }}>
@@ -551,12 +647,13 @@ export default function StudentMessagesPage() {
               }
               active={folder === "inbox"}
               onClick={() => setFolder("inbox")}
+              buttonStyle={folderBtnStyle}
             />
-            <Folder label="Sent" active={folder === "sent"} onClick={() => setFolder("sent")} />
-            <Folder label="Trash" active={folder === "trash"} onClick={() => setFolder("trash")} />
+            <Folder label="Sent" active={folder === "sent"} onClick={() => setFolder("sent")} buttonStyle={folderBtnStyle} />
+            <Folder label="Trash" active={folder === "trash"} onClick={() => setFolder("trash")} buttonStyle={folderBtnStyle} />
           </div>
 
-          <div style={listArea}>
+          <div style={listAreaStyle}>
             <div style={divider} />
 
             {visibleMessages.length === 0 ? (
@@ -565,7 +662,7 @@ export default function StudentMessagesPage() {
               visibleMessages.map((m) => (
                 <div
                   key={m.id}
-                  style={{ ...row, cursor: "pointer" }}
+                  style={{ ...rowStyle, cursor: "pointer" }}
                   onClick={async () => {
                     setOpenMsg(m);
                     if (m.recipient_id === userId && !m.recipient_read_at) {
@@ -582,29 +679,29 @@ export default function StudentMessagesPage() {
                     />
                   </div>
 
-                  <div style={sender}>{m.senderName}</div>
+                  <div style={senderStyle}>{m.senderName}</div>
 
-                  <div style={subjectLine}>
+                  <div style={subjectLineStyle}>
                     <span style={{ fontWeight: 700 }}>{m.subject || "(No Subject)"}</span>
-                    {m.preview ? <span style={{ marginLeft: 10, color: "#6b7280" }}>{m.preview}</span> : null}
+                    {m.preview ? <span style={{ marginLeft: isMobile ? 0 : 10, color: "#6b7280" }}>{m.preview}</span> : null}
                   </div>
 
-                  <div style={time}>{m.time}</div>
+                  {!isMobile && <div style={time}>{m.time}</div>}
                 </div>
               ))
             )}
 
-            <div style={footerBar}>
+            <div style={footerBarStyle}>
               {folder === "trash" ? (
-                <button onClick={deleteForeverSelected} style={trashBtn} type="button" disabled={!selectedIds.length}>
+                <button onClick={deleteForeverSelected} style={trashBtnStyle} type="button" disabled={!selectedIds.length}>
                   Delete Forever
                 </button>
               ) : (
-                <button onClick={moveSelectedToTrash} style={trashBtn} type="button" disabled={!selectedIds.length}>
+                <button onClick={moveSelectedToTrash} style={trashBtnStyle} type="button" disabled={!selectedIds.length}>
                   Move selected to Trash
                 </button>
               )}
-              <div style={shown}>{visibleMessages.length} shown</div>
+              <div style={shownStyle}>{visibleMessages.length} shown</div>
             </div>
 
             {status ? <div style={statusText}>{status}</div> : null}
@@ -700,9 +797,9 @@ export default function StudentMessagesPage() {
   );
 }
 
-function Folder({ label, active, onClick }) {
+function Folder({ label, active, onClick, buttonStyle }) {
   return (
-    <button onClick={onClick} style={{ ...folderBtn, background: active ? "#eef3fb" : "transparent" }} type="button">
+    <button onClick={onClick} style={{ ...folderBtn, ...buttonStyle, background: active ? "#eef3fb" : "transparent" }} type="button">
       {label}
     </button>
   );

@@ -24,6 +24,7 @@ function computeFolder(m, userId) {
 export default function TeacherMessagesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isMobile, setIsMobile] = useState(false);
 
   const [folder, setFolder]         = useState("inbox");
   const [search, setSearch]         = useState("");
@@ -46,6 +47,14 @@ export default function TeacherMessagesPage() {
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState([]);
   const openId = searchParams.get("open");
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 700px)");
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   useEffect(() => {
     let channelA, channelB, alive = true;
@@ -413,18 +422,88 @@ export default function TeacherMessagesPage() {
 
   if (loading) return <div style={{ padding: 40 }}>Loading Messages</div>;
 
+  const wrapStyle = isMobile ? { ...wrap, padding: 10 } : wrap;
+  const titleStyleLocal = isMobile ? { ...titleStyle, fontSize: 42, marginBottom: 10 } : titleStyle;
+  const cardStyle = isMobile
+    ? { ...card, padding: 12, borderRadius: 12, maxWidth: "100%", minHeight: 0, overflow: "hidden" }
+    : card;
+  const topBarStyle = isMobile
+    ? {
+        ...topBar,
+        display: "grid",
+        gridTemplateColumns: "minmax(0, 1fr) minmax(118px, 0.9fr)",
+        columnGap: 8,
+        rowGap: 8,
+        alignItems: "stretch",
+      }
+    : topBar;
+  const composeBtnStyle = isMobile ? { ...composeBtn, width: "100%", minWidth: 0, height: 38, boxSizing: "border-box" } : composeBtn;
+  const selectAllStyle = isMobile
+    ? {
+        ...selectAll_,
+        width: "100%",
+        minWidth: 0,
+        justifyContent: "center",
+        fontSize: 10,
+        padding: "0 8px",
+        gap: 6,
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        boxSizing: "border-box",
+      }
+    : selectAll_;
+  const selectAllTextStyle = isMobile
+    ? { marginLeft: 0, overflow: "hidden", textOverflow: "ellipsis" }
+    : { marginLeft: 6, fontSize: 12 };
+  const searchWrapStyle = isMobile
+    ? { ...searchWrap, width: "100%", minWidth: 0, maxWidth: "100%", gridColumn: "1 / -1", height: 36, boxSizing: "border-box" }
+    : searchWrap;
+  const searchInputStyle = isMobile ? { ...searchInput, fontSize: 13, minWidth: 0 } : searchInput;
+  const pageSelectStyle = isMobile
+    ? { ...pageSelect, width: "100%", minWidth: 0, height: 36, gridColumn: "1 / -1" }
+    : pageSelect;
+  const bodyGridStyle = isMobile ? { ...bodyGrid, gridTemplateColumns: "1fr", gap: 10 } : bodyGrid;
+  const foldersStyleLocal = isMobile
+    ? { ...foldersStyle, display: "grid", gridTemplateColumns: "repeat(3, minmax(0,1fr))", gap: 8, paddingTop: 0 }
+    : foldersStyle;
+  const folderBtnStyle = isMobile
+    ? { ...folderBtn, marginBottom: 0, height: 36, textAlign: "center", padding: "0 8px", fontSize: 13 }
+    : folderBtn;
+  const listAreaStyle = isMobile
+    ? { ...listArea, minHeight: 300, border: "1px solid #e5e7eb", borderRadius: 10, padding: 8, background: "#fff", overflowX: "hidden" }
+    : listArea;
+  const rowStyle = isMobile
+    ? { ...row, gridTemplateColumns: "28px 1fr", gap: 8, minHeight: 56, padding: "8px 0" }
+    : row;
+  const senderStyle = isMobile ? { ...sender, fontSize: 13 } : sender;
+  const subjectLineStyle = isMobile
+    ? {
+        ...subjectLine,
+        fontSize: 12,
+        gridColumn: "2 / 3",
+        whiteSpace: "normal",
+        overflow: "hidden",
+        display: "-webkit-box",
+        WebkitLineClamp: 2,
+        WebkitBoxOrient: "vertical",
+      }
+    : subjectLine;
+  const footerBarStyle = isMobile ? { ...footerBar, flexDirection: "column", alignItems: "stretch", gap: 8 } : footerBar;
+  const trashBtnStyle = isMobile ? { ...trashBtn, width: "100%", height: 34 } : trashBtn;
+  const shownStyle = isMobile ? { ...shown, textAlign: "center" } : shown;
+
   return (
-    <div style={wrap}>
+    <div style={wrapStyle}>
       {toast && (
         <div style={toastStyle}>
           {toast}
         </div>
       )}
-      <div style={{ ...titleStyle }}>Messages</div>
+      <div style={titleStyleLocal}>Messages</div>
 
-      <div style={card}>
+      <div style={cardStyle}>
         {/* Top bar */}
-        <div style={topBar}>
+        <div style={topBarStyle}>
           <button
             onClick={async () => {
               setComposeSubject("");
@@ -432,39 +511,39 @@ export default function TeacherMessagesPage() {
               setComposeOpen(true);
               await loadRecipients();
             }}
-            style={composeBtn}
+            style={composeBtnStyle}
             type="button"
           >
             Compose
           </button>
-          <div style={selectAll_}>
+          <div style={selectAllStyle}>
             <input type="checkbox"
               checked={selectedIds.length === filtered.length && filtered.length > 0}
               onChange={selectAll}
             />
-            <span style={{ marginLeft: 6, fontSize: 12 }}>Select All</span>
+            <span style={selectAllTextStyle}>Select All</span>
           </div>
-          <div style={searchWrap}>
+          <div style={searchWrapStyle}>
             <span style={searchIcon}>Search</span>
             <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search mail" style={searchInput} />
+              placeholder="Search mail" style={searchInputStyle} />
           </div>
-          <select value={pageSize} onChange={e => setPageSize(Number(e.target.value))} style={pageSelect}>
+          <select value={pageSize} onChange={e => setPageSize(Number(e.target.value))} style={pageSelectStyle}>
             {[10, 20, 50, 100].map(n => <option key={n}>{n}</option>)}
           </select>
         </div>
 
         {/* Body */}
-        <div style={bodyGrid}>
+        <div style={bodyGridStyle}>
           {/* Folders */}
-          <div style={foldersStyle}>
-            <Folder label="Inbox" active={folder === "inbox"} onClick={() => setFolder("inbox")} />
-            <Folder label="Sent"  active={folder === "sent"}  onClick={() => setFolder("sent")} />
-            <Folder label="Trash" active={folder === "trash"} onClick={() => setFolder("trash")} />
+          <div style={foldersStyleLocal}>
+            <Folder label="Inbox" active={folder === "inbox"} onClick={() => setFolder("inbox")} buttonStyle={folderBtnStyle} />
+            <Folder label="Sent"  active={folder === "sent"}  onClick={() => setFolder("sent")} buttonStyle={folderBtnStyle} />
+            <Folder label="Trash" active={folder === "trash"} onClick={() => setFolder("trash")} buttonStyle={folderBtnStyle} />
           </div>
 
           {/* Message list */}
-          <div style={listArea}>
+          <div style={listAreaStyle}>
             <div style={divider} />
             {filtered.length === 0 ? (
               <div style={empty}>No messages in this folder.</div>
@@ -478,7 +557,7 @@ export default function TeacherMessagesPage() {
                 return (
                   <div
                     key={m.id}
-                    style={{ ...row, background: unread ? "rgba(47,111,179,0.05)" : "transparent", cursor: "pointer" }}
+                    style={{ ...rowStyle, background: unread ? "rgba(47,111,179,0.05)" : "transparent", cursor: "pointer" }}
                     onClick={async () => {
                       setOpenMsg(m);
                       if (m.recipient_id === userId && !m.recipient_read_at) {
@@ -493,31 +572,31 @@ export default function TeacherMessagesPage() {
                         onClick={(e) => e.stopPropagation()}
                       />
                     </div>
-                    <div style={{ ...sender, fontWeight: unread ? 900 : 700 }}>
+                    <div style={{ ...senderStyle, fontWeight: unread ? 900 : 700 }}>
                       {isMe ? `To: ${name}` : name}
                     </div>
-                    <div style={subjectLine}>
+                    <div style={subjectLineStyle}>
                       <span style={{ fontWeight: unread ? 800 : 500 }}>{m.subject || "(no subject)"}</span>
-                      {m.body ? <span style={{ color: "#6b7280", marginLeft: 6 }}> {m.body.slice(0, 60)}</span> : null}
+                      {m.body ? <span style={{ color: "#6b7280", marginLeft: isMobile ? 0 : 6 }}> {m.body.slice(0, 60)}</span> : null}
                     </div>
-                    <div style={time}>{fmtTime(m.created_at)}</div>
+                    {!isMobile && <div style={time}>{fmtTime(m.created_at)}</div>}
                   </div>
                 );
               })
             )}
 
             {/* Footer */}
-            <div style={footerBar}>
+            <div style={footerBarStyle}>
               {folder === "trash" ? (
-                <button onClick={deleteForeverSelected} disabled={!selectedIds.length} style={trashBtn}>
+                <button onClick={deleteForeverSelected} disabled={!selectedIds.length} style={trashBtnStyle}>
                   Delete Forever
                 </button>
               ) : (
-                <button onClick={trashSelected} disabled={!selectedIds.length} style={trashBtn}>
+                <button onClick={trashSelected} disabled={!selectedIds.length} style={trashBtnStyle}>
                   Move to Trash
                 </button>
               )}
-              <span style={shown}>Showing {filtered.length} messages</span>
+              <span style={shownStyle}>Showing {filtered.length} messages</span>
             </div>
             {status && <div style={statusText}>{status}</div>}
           </div>
@@ -608,10 +687,10 @@ export default function TeacherMessagesPage() {
   );
 }
 
-function Folder({ label, active, onClick }) {
+function Folder({ label, active, onClick, buttonStyle }) {
   return (
     <button onClick={onClick}
-      style={{ ...folderBtn, background: active ? "#eef3fb" : "transparent" }}
+      style={{ ...folderBtn, ...buttonStyle, background: active ? "#eef3fb" : "transparent" }}
       type="button">
       {label}
     </button>

@@ -61,6 +61,7 @@ function getExt(fileName) {
 export default function StudentProfilePage() {
   const router = useRouter();
   const fileRef = useRef(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
@@ -107,14 +108,30 @@ export default function StudentProfilePage() {
       return;
     }
 
-    const { data, error } = await supabase.storage.from("avatars").createSignedUrl(path, 60 * 30);
-    if (error) {
-      setMsg(error.message);
-      setAvatarUrl("");
+    const bucket = supabase.storage.from("avatars");
+    const { data, error } = await bucket.createSignedUrl(path, 60 * 30, {
+      transform: { width: 256, height: 256, resize: "cover", quality: 72 },
+    });
+    if (!error && data?.signedUrl) {
+      setAvatarUrl(data.signedUrl);
       return;
     }
-    setAvatarUrl(data?.signedUrl || "");
+    const { data: fallbackData, error: fallbackError } = await bucket.createSignedUrl(path, 60 * 30);
+    if (!fallbackError && fallbackData?.signedUrl) {
+      setAvatarUrl(fallbackData.signedUrl);
+      return;
+    }
+    setMsg(error?.message || fallbackError?.message || "Failed to load avatar.");
+    setAvatarUrl("");
   }, [setMsg]);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 700px)");
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -369,36 +386,69 @@ export default function StudentProfilePage() {
 
   if (loading) return <div style={{ padding: 24 }}>Loading profile...</div>;
 
+  const profileHeaderCardStyle = isMobile
+    ? { ...card, borderRadius: 18, padding: 16 }
+    : card;
+  const profileHeaderRowStyle = isMobile
+    ? { display: "flex", flexDirection: "column", alignItems: "center", gap: 12, textAlign: "center" }
+    : { display: "flex", gap: 12, alignItems: "center" };
+  const profileAvatarStyle = isMobile
+    ? { ...avatarCircle, width: 120, height: 120, border: "2px solid #d1d5db" }
+    : avatarCircle;
+  const profileNameWrapStyle = isMobile
+    ? { width: "100%", display: "flex", flexDirection: "column", alignItems: "center" }
+    : { flex: 1, minWidth: 0 };
+  const profileTitleStyle = isMobile
+    ? { ...titleText, fontSize: 22, lineHeight: 1.05, whiteSpace: "normal", textAlign: "center" }
+    : titleText;
+  const profileSubStyle = isMobile
+    ? { ...subText, fontSize: 14, marginTop: 4, textAlign: "center" }
+    : subText;
+  const profileAvatarActionsStyle = isMobile
+    ? { marginTop: 10, display: "flex", gap: 10, alignItems: "center", justifyContent: "center", flexWrap: "wrap", width: "100%" }
+    : { marginTop: 8, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" };
+  const profileEditWrapStyle = isMobile
+    ? { display: "flex", width: "100%" }
+    : { display: "flex", flexDirection: "column", gap: 8 };
+  const profileEditBtnStyle = isMobile
+    ? { ...(editing ? btnWhite : btnBlue), width: "100%", height: 42, fontSize: 14, borderRadius: 10 }
+    : (editing ? btnWhite : btnBlue);
+  const profileChangeBtnStyle = isMobile
+    ? { ...btnWhite, height: 38, borderRadius: 10, padding: "0 16px", fontSize: 14 }
+    : btnWhite;
+
   return (
     <div style={wrap}>
-      <div style={grid}>
+      <div style={isMobile ? { ...grid, gridTemplateColumns: "1fr", gap: 10 } : grid}>
         {/* LEFT SIDE */}
         <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
           {/* Top profile header card */}
-          <div style={card}>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+          <div style={profileHeaderCardStyle}>
+            <div style={profileHeaderRowStyle}>
               {/* avatar */}
-              <div style={avatarCircle}>
+              <div style={profileAvatarStyle}>
                 {avatarUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={avatarUrl}
                     alt="Avatar"
+                    loading="eager"
+                    decoding="async"
                     style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
                   />
                 ) : (
-                  <span style={{ fontSize: 34, opacity: 0.9 }}>ðŸ‘¤</span>
+                  <span style={{ fontSize: 34, opacity: 0.9 }}>👤</span>
                 )}
               </div>
 
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={titleText}>{form.full_name || "Student User"}</div>
-                <div style={subText}>Student ID: {form.student_no || "-"}</div>
-                <div style={subText}>BS Information - 2nd Year</div>
+              <div style={profileNameWrapStyle}>
+                <div style={profileTitleStyle}>{form.full_name || "Student User"}</div>
+                <div style={profileSubStyle}>Student ID: {form.student_no || "-"}</div>
+                <div style={profileSubStyle}>BS Information - 2nd Year</div>
 
                 {/* Avatar controls */}
-                <div style={{ marginTop: 8, display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                  <button onClick={pickAvatar} disabled={avatarBusy} style={btnWhite}>
+                <div style={profileAvatarActionsStyle}>
+                  <button onClick={pickAvatar} disabled={avatarBusy} style={profileChangeBtnStyle}>
                     {avatarBusy ? "Uploading..." : " Change Avatar"}
                   </button>
 
@@ -414,10 +464,10 @@ export default function StudentProfilePage() {
                 </div>
               </div>
 
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={profileEditWrapStyle}>
                 <button
                   onClick={() => setEditing((v) => !v)}
-                  style={editing ? btnWhite : btnBlue}
+                  style={profileEditBtnStyle}
                   type="button"
                 >
                   {editing ? "Cancel Edit" : "Edit Profile"}
@@ -426,7 +476,7 @@ export default function StudentProfilePage() {
             </div>
           </div>
 
-          <Section title="Basic Information" editing={editing}>
+          <Section title="Basic Information" editing={editing} isMobile={isMobile}>
             <Field label="Full Name" value={form.full_name} editing={editing} onChange={(v) => handleChange("full_name", v)} />
             <Field label="Company" value={form.company} editing={editing} onChange={(v) => handleChange("company", v)} optional />
             <Field label="Email Address" value={form.email} editing={editing} onChange={(v) => handleChange("email", v)} />
@@ -435,14 +485,14 @@ export default function StudentProfilePage() {
             <Field label="Department" value={form.department} editing={editing} onChange={(v) => handleChange("department", v)} optional />
           </Section>
 
-          <Section title="Contact Information" editing={editing}>
+          <Section title="Contact Information" editing={editing} isMobile={isMobile}>
             <Field label="Mailing Address" value={form.mailing_address} editing={editing} onChange={(v) => handleChange("mailing_address", v)} optional />
             <Field label="Phone Number" value={form.phone_number} editing={editing} onChange={(v) => handleChange("phone_number", v)} optional />
             <Field label="Business Fax Number" value={form.business_fax} editing={editing} onChange={(v) => handleChange("business_fax", v)} optional />
             <div />
           </Section>
 
-          <Section title="Additional Information" editing={editing}>
+          <Section title="Additional Information" editing={editing} isMobile={isMobile}>
             <Field label="Gender" value={form.gender} editing={editing} onChange={(v) => handleChange("gender", v)} optional />
             <Field label="Education Level" value={form.education_level} editing={editing} onChange={(v) => handleChange("education_level", v)} optional />
             <Field label="Additional Name" value={form.additional_name} editing={editing} onChange={(v) => handleChange("additional_name", v)} optional />
@@ -489,16 +539,32 @@ export default function StudentProfilePage() {
               const isZero = gpaPercent === 0;
 
               return (
-                <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: 10, marginTop: 10, alignItems: "center" }}>
-                  <div style={donutWrap(isZero, gpaPercent)}>
-                    <div style={donutInner}>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: isMobile ? "78px 1fr" : "100px 1fr",
+                    gap: isMobile ? 8 : 10,
+                    marginTop: 10,
+                    alignItems: "center",
+                  }}
+                >
+                  <div style={donutWrap(isZero, gpaPercent, isMobile)}>
+                    <div style={donutInner(isMobile)}>
                       <div style={{ fontWeight: 900, color: isZero ? "#9ca3af" : "#111827" }}>{stats.gpa.toFixed(2)}</div>
                     </div>
                   </div>
 
                   <div>
                     <div style={{ fontWeight: 900, color: "#111827" }}>Overall GPA</div>
-                    <div style={{ fontSize: 20, fontWeight: 900, marginTop: 3, color: isZero ? "#9ca3af" : "#111827" }}>
+                    <div
+                      style={{
+                        fontSize: isMobile ? 30 : 20,
+                        fontWeight: 900,
+                        marginTop: 3,
+                        lineHeight: 1,
+                        color: isZero ? "#9ca3af" : "#111827",
+                      }}
+                    >
                       {stats.gpa.toFixed(2)}
                     </div>
 
@@ -506,7 +572,16 @@ export default function StudentProfilePage() {
                       <div style={{ height: "100%", width: `${gpaPercent}%`, background: isZero ? "#d1d5db" : "#22c55e" }} />
                     </div>
 
-                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 10, color: "#6b7280", fontSize: 12 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        marginTop: 10,
+                        color: "#6b7280",
+                        fontSize: isMobile ? 11 : 12,
+                        gap: 10,
+                      }}
+                    >
                       <div>
                         Completed Units
                         <div style={{ fontWeight: 900, color: "#111827" }}>{stats.completedUnits}</div>
@@ -551,9 +626,17 @@ export default function StudentProfilePage() {
                 const barColor = isZero ? "#d1d5db" : color;
 
                 return (
-                  <div key={label} style={{ display: "grid", gridTemplateColumns: "36px 1fr 44px", gap: 10, alignItems: "center" }}>
+                  <div
+                    key={label}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: isMobile ? "28px 1fr 36px" : "36px 1fr 44px",
+                      gap: isMobile ? 8 : 10,
+                      alignItems: "center",
+                    }}
+                  >
                     <div style={{ fontWeight: 900 }}>{label}</div>
-                    <div style={{ height: 8, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
+                    <div style={{ height: isMobile ? 10 : 8, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
                       <div style={{ height: "100%", width: `${clamp(val, 0, 100)}%`, background: barColor }} />
                     </div>
                     <div style={{ textAlign: "right", fontWeight: 900, color: isZero ? "#9ca3af" : "#111827" }}>
@@ -576,7 +659,7 @@ export default function StudentProfilePage() {
   );
 }
 
-function Section({ title, children, editing }) {
+function Section({ title, children, editing, isMobile = false }) {
   return (
     <div style={card}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, borderBottom: "1px solid #eef0f3", paddingBottom: 8 }}>
@@ -584,7 +667,16 @@ function Section({ title, children, editing }) {
         {editing && <div style={{ marginLeft: "auto", fontSize: 12, color: "#6b7280" }}>Editing</div>}
       </div>
 
-      <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>{children}</div>
+      <div
+        style={{
+          marginTop: 10,
+          display: "grid",
+          gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+          gap: 10,
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -702,13 +794,14 @@ const input = {
   fontSize: 13,
 };
 
-const donutWrap = (isZero, gpaPercent) => {
+const donutWrap = (isZero, gpaPercent, isMobile = false) => {
   const p = clamp(gpaPercent, 0, 100);
+  const size = isMobile ? 72 : 90;
 
   if (isZero) {
     return {
-      width: 90,
-      height: 90,
+      width: size,
+      height: size,
       borderRadius: "50%",
       background: "conic-gradient(#d1d5db 0deg 360deg)",
       display: "grid",
@@ -718,8 +811,8 @@ const donutWrap = (isZero, gpaPercent) => {
 
   const deg = Math.round((p / 100) * 360);
   return {
-    width: 90,
-    height: 90,
+    width: size,
+    height: size,
     borderRadius: "50%",
     background: `conic-gradient(#22c55e 0deg ${deg}deg, #e5e7eb ${deg}deg 360deg)`,
     display: "grid",
@@ -727,12 +820,12 @@ const donutWrap = (isZero, gpaPercent) => {
   };
 };
 
-const donutInner = {
-  width: 62,
-  height: 62,
+const donutInner = (isMobile = false) => ({
+  width: isMobile ? 50 : 62,
+  height: isMobile ? 50 : 62,
   borderRadius: "50%",
   background: "white",
   display: "grid",
   placeItems: "center",
   border: "1px solid #e5e7eb",
-};
+});

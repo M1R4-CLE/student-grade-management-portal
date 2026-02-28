@@ -33,8 +33,12 @@ export default function StudentCoursesPage() {
   const toCoverUrl = useCallback(async (path) => {
     if (!path) return "";
     const bucket = supabase.storage.from("course-covers");
-    const { data, error } = await bucket.createSignedUrl(path, 1800);
+    const { data, error } = await bucket.createSignedUrl(path, 1800, {
+      transform: { width: 560, height: 320, resize: "cover", quality: 70 },
+    });
     if (!error && data?.signedUrl) return data.signedUrl;
+    const { data: fallbackData, error: fallbackError } = await bucket.createSignedUrl(path, 1800);
+    if (!fallbackError && fallbackData?.signedUrl) return fallbackData.signedUrl;
     const { data: publicData } = bucket.getPublicUrl(path);
     return publicData?.publicUrl || "";
   }, []);
@@ -49,6 +53,8 @@ export default function StudentCoursesPage() {
         src={course.img}
         alt={course?.title || "Course cover"}
         onError={() => markCoverBroken(course)}
+        loading="lazy"
+        decoding="async"
         style={{
           width: "100%",
           height: "100%",
@@ -62,6 +68,8 @@ export default function StudentCoursesPage() {
       <img
         src={getCourseImg(course?.title || "")}
         alt={course?.title || "Course cover"}
+        loading="lazy"
+        decoding="async"
         style={{
           width: "100%",
           height: "100%",

@@ -194,11 +194,14 @@ export default function RightPanel({
       <aside
   style={{
     width: 320,
+    height: "100%",
+    minHeight: 0,
     display: "flex",
     flexDirection: "column",
     gap: 14,
     borderLeft: "1px solid #C9C9C9",
     paddingLeft: 14, // optional: keeps spacing nice after the line
+    boxSizing: "border-box",
   }}
 >
         {/* Header card */}

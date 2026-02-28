@@ -18,6 +18,7 @@ const PAGE_SIZE = 4;
 
 export default function TeacherClassManagementPage() {
   const router = useRouter();
+  const [isMobile, setIsMobile] = useState(false);
 
   const [loading, setLoading]       = useState(true);
   const [teacherId, setTeacherId]   = useState(null);
@@ -56,6 +57,14 @@ export default function TeacherClassManagementPage() {
   const [foundStudent, setFoundStudent]     = useState(null);
   const [enrollBusy, setEnrollBusy]         = useState(false);
   const [enrollMsg, setEnrollMsg]           = useState("");
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 700px)");
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   // ── Auth ────────────────────────────────────────────────────
   useEffect(() => {
@@ -562,40 +571,119 @@ export default function TeacherClassManagementPage() {
 
   if (loading) return <div style={{ padding: 40 }}>Loading Class Management...</div>;
 
+  const pageTitleStyle = {
+    fontWeight: 900,
+    fontSize: isMobile ? 22 : 26,
+    marginBottom: isMobile ? 14 : 20,
+    color: "#111827",
+  };
+
+  const addBarStyle = {
+    display: "flex",
+    gap: 10,
+    alignItems: isMobile ? "stretch" : "center",
+    marginBottom: isMobile ? 16 : 24,
+    flexWrap: "wrap",
+    flexDirection: isMobile ? "column" : "row",
+  };
+
+  const codeInputStyle = {
+    ...inputStyle,
+    width: isMobile ? "100%" : "auto",
+    minWidth: isMobile ? 0 : inputStyle.minWidth,
+    boxSizing: "border-box",
+  };
+
+  const titleInputStyle = {
+    ...inputStyle,
+    minWidth: isMobile ? 0 : 220,
+    width: isMobile ? "100%" : "auto",
+    boxSizing: "border-box",
+  };
+
+  const addBtnStyle = {
+    ...addBtn,
+    width: isMobile ? "100%" : "auto",
+    height: isMobile ? 42 : addBtn.height,
+  };
+
+  const deleteBtnStyle = {
+    ...deleteBtn,
+    width: isMobile ? "100%" : "auto",
+    height: isMobile ? 42 : deleteBtn.height,
+  };
+
+  const editBtnStyle = {
+    ...editBtn,
+    width: isMobile ? "100%" : "auto",
+    height: isMobile ? 42 : editBtn.height,
+  };
+
+  const saveEditBtnStyle = {
+    ...saveEditBtn,
+    width: isMobile ? "100%" : "auto",
+    height: isMobile ? 42 : saveEditBtn.height,
+  };
+
+  const cancelEditBtnStyle = {
+    ...cancelEditBtn,
+    width: isMobile ? "100%" : "auto",
+    height: isMobile ? 42 : cancelEditBtn.height,
+  };
+
+  const courseSectionStyle = isMobile
+    ? { ...sectionCard, padding: 14, borderRadius: 14 }
+    : sectionCard;
+
+  const courseGridStyle = {
+    display: "grid",
+    gridTemplateColumns: isMobile ? "1fr" : "repeat(auto-fill, minmax(200px, 1fr))",
+    gap: isMobile ? 12 : 18,
+  };
+
+  const paginationWrapStyle = {
+    display: "flex",
+    justifyContent: isMobile ? "center" : "flex-end",
+    alignItems: "center",
+    gap: 8,
+    marginTop: isMobile ? 14 : 18,
+    flexWrap: "wrap",
+  };
+
   // ── Render ──────────────────────────────────────────────────
   return (
     <>
     <div className="classMgmtScroll" style={pageScrollWrap}>
 
       {/* Title */}
-      <h1 style={{ fontWeight: 900, fontSize: 26, marginBottom: 20, color: "#111827" }}>
+      <h1 style={pageTitleStyle}>
         Class Management
       </h1>
 
       {/* Add Course Bar */}
-      <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 24, flexWrap: "wrap" }}>
+      <div style={addBarStyle}>
         <input
           value={newCode}
           onChange={e => { setNewCode(e.target.value); setAddErr(""); }}
           placeholder="Course Code (e.g., IT101)"
-          style={inputStyle}
+          style={codeInputStyle}
           maxLength={20}
         />
         <input
           value={newTitle}
           onChange={e => { setNewTitle(e.target.value); setAddErr(""); }}
           placeholder="Course Title (e.g., Programming 1)"
-          style={{ ...inputStyle, minWidth: 220 }}
+          style={titleInputStyle}
           maxLength={80}
           onKeyDown={e => e.key === "Enter" && handleAddCourse()}
         />
-        <button onClick={handleAddCourse} disabled={addBusy} style={addBtn}>
+        <button onClick={handleAddCourse} disabled={addBusy} style={addBtnStyle}>
           {addBusy ? "Adding..." : "Add Course"}
         </button>
         <button
           onClick={openDeleteModal}
           disabled={courses.length === 0 || addBusy || deleteBusy || editBusy}
-          style={deleteBtn}
+          style={deleteBtnStyle}
         >
           Delete Course
         </button>
@@ -603,7 +691,7 @@ export default function TeacherClassManagementPage() {
           <button
             onClick={startEditCourse}
             disabled={addBusy || deleteBusy || editBusy}
-            style={editBtn}
+            style={editBtnStyle}
           >
             Edit Course
           </button>
@@ -613,14 +701,14 @@ export default function TeacherClassManagementPage() {
             <button
               onClick={saveEditCourse}
               disabled={editBusy || coverBusy}
-              style={saveEditBtn}
+              style={saveEditBtnStyle}
             >
               {editBusy ? "Saving..." : "Save Edit"}
             </button>
             <button
               onClick={cancelEditCourse}
               disabled={editBusy}
-              style={cancelEditBtn}
+              style={cancelEditBtnStyle}
             >
               Cancel
             </button>
@@ -632,7 +720,7 @@ export default function TeacherClassManagementPage() {
       </div>
 
       {/* Course Cards */}
-      <div style={sectionCard}>
+      <div style={courseSectionStyle}>
         <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 16, color: "#111827" }}>
           Select Course
         </div>
@@ -644,13 +732,7 @@ export default function TeacherClassManagementPage() {
         ) : (
           <>
             {/* Grid */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
-                gap: 18,
-              }}
-            >
+            <div style={courseGridStyle}>
               {visibleCourses.map(c => {
                 const active = selectedCourse?.id === c.id;
                 return (
@@ -668,11 +750,11 @@ export default function TeacherClassManagementPage() {
                       background: "white",
                       transition: "all 0.15s ease",
                     }}
-                    onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-3px)"; }}
-                    onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; }}
+                    onMouseEnter={e => { if (!isMobile) e.currentTarget.style.transform = "translateY(-3px)"; }}
+                    onMouseLeave={e => { if (!isMobile) e.currentTarget.style.transform = "translateY(0)"; }}
                   >
                     {/* Book cover */}
-                    <div style={{ height: 200, overflow: "hidden" }}>
+                    <div style={{ height: isMobile ? 170 : 200, overflow: "hidden" }}>
                       {c.cover_url ? (
                         <img
                           src={c.cover_url}
@@ -703,7 +785,7 @@ export default function TeacherClassManagementPage() {
             </div>
 
             {/* Pagination */}
-            <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 18 }}>
+            <div style={paginationWrapStyle}>
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={page === 1}
@@ -960,6 +1042,38 @@ export default function TeacherClassManagementPage() {
             {roster.length === 0 ? (
               <div style={{ color: "#6b7280", fontSize: 13 }}>
                 No students enrolled in this course yet.
+              </div>
+            ) : isMobile ? (
+              <div style={{ display: "grid", gap: 10 }}>
+                {roster.map((s, i) => (
+                  <div
+                    key={s.enrollId}
+                    style={{
+                      border: "1px solid #e5e7eb",
+                      borderRadius: 10,
+                      background: activeRosterStudent?.enrollId === s.enrollId ? "#eff6ff" : "#fff",
+                      padding: 10,
+                      cursor: "pointer",
+                    }}
+                    onClick={() => setActiveRosterStudent(s)}
+                    onDoubleClick={() => router.push(`/teacher/Grade-Entry?courseId=${selectedCourse.id}&studentId=${s.studentId}`)}
+                    title="Click to preview student, double-click to open Grade Entry"
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>#{i + 1}</div>
+                      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>{s.enrolledAt}</div>
+                    </div>
+                    <div style={{ marginTop: 4, fontSize: 15, fontWeight: 800, color: "#111827", lineHeight: 1.2 }}>
+                      {s.name}
+                    </div>
+                    <div style={{ marginTop: 4, fontSize: 13, fontWeight: 700, color: "#2f6fb3" }}>
+                      {s.studentNo}
+                    </div>
+                    <div style={{ marginTop: 2, fontSize: 13, color: "#6b7280", overflowWrap: "anywhere" }}>
+                      {s.email}
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <div style={{ overflowX: "auto" }}>

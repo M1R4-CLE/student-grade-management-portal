@@ -23,6 +23,15 @@ export default function StudentGradesPage() {
   const [grades, setGrades] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 700px)");
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   useEffect(() => {
     const run = async () => {
@@ -129,8 +138,19 @@ export default function StudentGradesPage() {
     <div style={{ width: "100%" }}>
 
       {/* â”€â”€ Header â”€â”€ */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-        <div style={{ fontWeight: 900, fontSize: 20 }}>My Gradebook</div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: isMobile ? "stretch" : "center",
+          flexDirection: isMobile ? "column" : "row",
+          gap: isMobile ? 10 : 0,
+          marginBottom: 14,
+        }}
+      >
+        <div style={{ fontWeight: 900, fontSize: isMobile ? 42 : 20, lineHeight: isMobile ? 0.95 : 1.1 }}>
+          My Gradebook
+        </div>
 
         {overallAvg && (
           <div
@@ -138,7 +158,10 @@ export default function StudentGradesPage() {
               display: "flex", alignItems: "center", gap: 10,
               background: "rgba(255,255,255,.85)",
               border: "1px solid rgba(0,0,0,.08)",
-              borderRadius: 12, padding: "8px 18px",
+              borderRadius: 12,
+              padding: isMobile ? "8px 12px" : "8px 18px",
+              width: isMobile ? "100%" : "auto",
+              boxSizing: "border-box",
             }}
           >
             <span style={{ fontSize: 13, color: "#6b7280", fontWeight: 700 }}>
@@ -172,6 +195,37 @@ export default function StudentGradesPage() {
           style={{ padding: 40, textAlign: "center", color: "#6b7280" }}
         >
           No grades available yet. Enroll in courses and wait for your teacher to enter grades.
+        </div>
+      ) : isMobile ? (
+        <div className="glassCard grades-mobile-wrap" style={{ padding: 14 }}>
+          <div className="grades-mobile-grid">
+            {grades.map((g, i) => (
+              <div key={i} className="grades-mobile-card">
+                <div className="grades-mobile-main">
+                  <div className="grades-mobile-left">
+                    <div className="grades-mobile-code">{g.code}</div>
+                    <div className="grades-mobile-name">{g.name}</div>
+                    <div className="grades-mobile-instructor">{g.instructor}</div>
+
+                    <div className="grades-mobile-metrics">
+                      <span>P: <b>{g.prelim != null ? `${g.prelim}%` : "-"}</b></span>
+                      <span>M: <b>{g.midterm != null ? `${g.midterm}%` : "-"}</b></span>
+                      <span>F: <b>{g.final_exam != null ? `${g.final_exam}%` : "-"}</b></span>
+                    </div>
+                  </div>
+
+                  <div className="grades-mobile-right" style={{ color: gradeColor(g.final) }}>
+                    <div className="grades-mobile-final-label">Final:</div>
+                    <div className="grades-mobile-final-value">{g.final != null ? `${g.final}%` : "-"}</div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 12, fontSize: 11, color: "#9ca3af" }}>
+            Final Grade = (Prelim x 0.30) + (Midterm x 0.30) + (Final Exam x 0.40). Computed automatically by the system.
+          </div>
         </div>
       ) : (
         <div className="glassCard" style={{ padding: 16, overflowX: "auto" }}>
@@ -244,6 +298,94 @@ export default function StudentGradesPage() {
           </div>
         </div>
       )}
+
+      <style jsx>{`
+        .grades-mobile-wrap {
+          border-radius: 16px;
+        }
+
+        .grades-mobile-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 10px;
+        }
+
+        .grades-mobile-card {
+          border: 1px solid rgba(0, 0, 0, 0.08);
+          border-radius: 12px;
+          background: #ffffff;
+          padding: 10px 12px;
+          box-shadow: 0 4px 10px rgba(17, 24, 39, 0.04);
+        }
+
+        .grades-mobile-main {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) auto;
+          gap: 10px;
+          align-items: stretch;
+        }
+
+        .grades-mobile-left {
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .grades-mobile-right {
+          min-width: 74px;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
+          justify-content: space-between;
+        }
+
+        .grades-mobile-code {
+          color: var(--blue-main);
+          font-weight: 900;
+          font-size: 18px;
+          line-height: 1.1;
+        }
+
+        .grades-mobile-name {
+          margin-top: 2px;
+          color: #111827;
+          font-size: 17px;
+          line-height: 1.15;
+        }
+
+        .grades-mobile-instructor {
+          margin-top: 2px;
+          color: #6b7280;
+          font-size: 13px;
+          line-height: 1.2;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .grades-mobile-metrics {
+          margin-top: 10px;
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          font-size: 13px;
+          color: #111827;
+        }
+
+        .grades-mobile-final-label {
+          font-size: 22px;
+          font-weight: 900;
+          line-height: 1;
+        }
+
+        .grades-mobile-final-value {
+          margin-top: auto;
+          font-size: 60px;
+          font-weight: 900;
+          line-height: 0.9;
+          letter-spacing: -0.03em;
+        }
+      `}</style>
     </div>
   );
 }

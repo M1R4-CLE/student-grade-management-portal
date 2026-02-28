@@ -11,6 +11,7 @@ import { supabase } from "@/app/lib/supabaseClient";
 export default function TeacherGradeEntryPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const [isMobile, setIsMobile] = useState(false);
 
   const [loading, setLoading]     = useState(true);
   const [teacherId, setTeacherId] = useState(null);
@@ -25,6 +26,14 @@ export default function TeacherGradeEntryPage() {
   const [saved, setSaved]         = useState({});    // { [studentId]: bool }
   const [err, setErr]             = useState("");
   const initialCourseId = searchParams.get("courseId") || "";
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 700px)");
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   // ── Auth ────────────────────────────────────────────────────
   useEffect(() => {
@@ -200,19 +209,29 @@ export default function TeacherGradeEntryPage() {
     <div style={{ width: "100%" }}>
 
       {/* Title */}
-      <h1 style={{ fontWeight: 900, fontSize: 26, marginBottom: 20, color: "#111827" }}>
+      <h1 style={{ fontWeight: 900, fontSize: isMobile ? 22 : 26, marginBottom: 20, color: "#111827" }}>
         Grade Entry
       </h1>
 
       {/* Course selector */}
-      <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 20, flexWrap: "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: 12,
+          alignItems: "center",
+          marginBottom: 20,
+          flexWrap: "wrap",
+          flexDirection: isMobile ? "column" : "row",
+          alignContent: isMobile ? "stretch" : "initial",
+        }}
+      >
         <select
           value={selectedId}
           onChange={e => setSelectedId(e.target.value)}
           style={{
             height: 42, padding: "0 14px", borderRadius: 10,
             border: "1px solid rgba(0,0,0,0.15)", fontSize: 13,
-            background: "white", minWidth: 260, fontWeight: 600,
+            background: "white", minWidth: isMobile ? 0 : 260, width: isMobile ? "100%" : "auto", fontWeight: 600,
           }}
         >
           <option value="">— Select a Course —</option>
@@ -229,7 +248,7 @@ export default function TeacherGradeEntryPage() {
             style={{
               height: 42, padding: "0 20px", borderRadius: 10,
               border: "none", background: "#57b447", color: "white",
-              fontWeight: 800, fontSize: 13, cursor: "pointer",
+              fontWeight: 800, fontSize: 13, cursor: "pointer", width: isMobile ? "100%" : "auto",
             }}
           >
             Save All Grades
@@ -254,6 +273,109 @@ export default function TeacherGradeEntryPage() {
       ) : rows.length === 0 ? (
         <div style={emptyBox}>
           No students enrolled in this course yet.
+        </div>
+      ) : isMobile ? (
+        <div style={{
+          background: "rgba(255,255,255,0.78)",
+          border: "1px solid rgba(0,0,0,0.08)",
+          borderRadius: 16,
+          padding: 12,
+          boxShadow: "0 8px 20px rgba(0,0,0,0.06)",
+        }}>
+          <div style={{ display: "grid", gap: 10 }}>
+            {rows.map((row, i) => {
+              const p = parseFloat(row.prelim) || 0;
+              const m = parseFloat(row.midterm) || 0;
+              const fe = parseFloat(row.final_exam) || 0;
+              const fg = Math.round((p * 0.3 + m * 0.3 + fe * 0.4) * 100) / 100;
+              const hasGrade = row.prelim !== "" || row.midterm !== "" || row.final_exam !== "";
+              const isSaved = saved[row.studentId];
+              const isSaving = saving[row.studentId];
+
+              return (
+                <div
+                  key={row.studentId}
+                  style={{
+                    border: "1px solid rgba(0,0,0,0.08)",
+                    borderRadius: 12,
+                    background: "#fff",
+                    padding: 10,
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "start" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>#{i + 1}</div>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: "#2f6fb3", lineHeight: 1.2 }}>{row.studentNo}</div>
+                      <div style={{ fontSize: 14, color: "#111827", lineHeight: 1.25 }}>{row.name}</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 700 }}>Final</div>
+                      <div style={{
+                        fontWeight: 900,
+                        fontSize: 18,
+                        color: hasGrade ? (fg >= 75 ? "#16a34a" : "#dc2626") : "#9ca3af",
+                      }}>
+                        {hasGrade ? `${fg}%` : "—"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginTop: 10 }}>
+                    {[
+                      ["Prelim", "prelim"],
+                      ["Midterm", "midterm"],
+                      ["Final Exam", "final_exam"],
+                    ].map(([label, field]) => (
+                      <div key={field}>
+                        <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, marginBottom: 4 }}>{label}</div>
+                        <input
+                          type="number"
+                          min={0}
+                          max={100}
+                          value={row[field]}
+                          onChange={e => updateRow(row.studentId, field, e.target.value)}
+                          style={{
+                            width: "100%",
+                            textAlign: "center",
+                            padding: "6px 6px",
+                            borderRadius: 6,
+                            border: "1px solid rgba(0,0,0,0.15)",
+                            fontSize: 13,
+                            outline: "none",
+                            boxSizing: "border-box",
+                          }}
+                          placeholder="0"
+                        />
+                      </div>
+                    ))}
+                  </div>
+
+                  <button
+                    onClick={() => saveRow(row)}
+                    disabled={isSaving}
+                    style={{
+                      marginTop: 10,
+                      width: "100%",
+                      height: 34,
+                      borderRadius: 8,
+                      border: "none",
+                      background: isSaved ? "#dcfce7" : "#2f6fb3",
+                      color: isSaved ? "#166534" : "white",
+                      fontWeight: 800,
+                      fontSize: 12,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {isSaving ? "Saving…" : isSaved ? "✓ Saved" : "Save"}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{ marginTop: 10, fontSize: 11, color: "#9ca3af" }}>
+            Final Grade = (Prelim × 0.30) + (Midterm × 0.30) + (Final Exam × 0.40). Computed automatically.
+          </div>
         </div>
       ) : (
         <div style={{

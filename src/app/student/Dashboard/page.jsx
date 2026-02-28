@@ -30,31 +30,41 @@ export default function StudentDashboardPage() {
   const [brokenCoverKeys, setBrokenCoverKeys] = useState({});
 
   const MAX_LEN = 20;
-  const toCoverUrl = useCallback(async (path) => {
+  const toCoverUrl = useCallback(async (path, mode = "card") => {
     if (!path) return "";
     const bucket = supabase.storage.from("course-covers");
-    const { data, error } = await bucket.createSignedUrl(path, 1800);
+    const transform =
+      mode === "feature"
+        ? { width: 640, height: 360, resize: "cover", quality: 72 }
+        : { width: 480, height: 270, resize: "cover", quality: 68 };
+    const { data, error } = await bucket.createSignedUrl(path, 1800, { transform });
     if (!error && data?.signedUrl) return data.signedUrl;
+    const { data: fallbackData, error: fallbackError } = await bucket.createSignedUrl(path, 1800);
+    if (!fallbackError && fallbackData?.signedUrl) return fallbackData.signedUrl;
     const { data: publicData } = bucket.getPublicUrl(path);
     return publicData?.publicUrl || "";
   }, []);
-  const getCoverKey = (course) => `${course?.id || "no-id"}|${course?.img || ""}`;
+  const getCoverKey = (course) => `${course?.id || "no-id"}|${course?.img || ""}|${course?.featureImg || ""}`;
   const markCoverBroken = (course) => {
     const key = getCoverKey(course);
     setBrokenCoverKeys((prev) => (prev[key] ? prev : { ...prev, [key]: true }));
   };
-  const renderCourseCover = (course, alt) =>
+  const renderCourseCover = (course, alt, mode = "card", loading = "lazy") =>
     course?.img && !brokenCoverKeys[getCoverKey(course)] ? (
       <img
-        src={course.img}
+        src={mode === "feature" ? course.featureImg || course.img : course.img}
         alt={alt || course?.title || "Course cover"}
         onError={() => markCoverBroken(course)}
+        loading={loading}
+        decoding="async"
         style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }}
       />
     ) : (
       <img
         src={getCourseImg(course?.title || "")}
         alt={alt || course?.title || "Course cover"}
+        loading={loading}
+        decoding="async"
         style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "inherit" }}
       />
     );
@@ -111,7 +121,8 @@ export default function StudentDashboardPage() {
       const mappedCourses = await Promise.all(
         baseCourses.map(async (c) => ({
           ...c,
-          img: await toCoverUrl(c.coverPath),
+          img: await toCoverUrl(c.coverPath, "card"),
+          featureImg: await toCoverUrl(c.coverPath, "feature"),
         }))
       );
 
@@ -166,6 +177,11 @@ export default function StudentDashboardPage() {
     const avg = valid.reduce((s, g) => s + Number(g.final_grade), 0) / valid.length;
     return avg.toFixed(2);
   }, [grades]);
+  const overallGradeDisplay = overallGrade ?? "0.00";
+  const [overallWholeRaw, overallDecimalRaw = "00"] = overallGradeDisplay.split(".");
+  const overallWhole = overallWholeRaw || "0";
+  const overallDecimal = overallDecimalRaw.padEnd(2, "0").slice(0, 2);
+  const overallGradeNumber = Number(overallGrade ?? 0);
 
   const confirmLogout = async () => {
     await supabase.auth.signOut();
@@ -190,25 +206,30 @@ export default function StudentDashboardPage() {
           style={{ marginTop: 14, padding: 14, display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}
         >
           {/* Overall avg */}
-          <div style={{ minWidth: 110 }}>
-            <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px" }}>
+          <div className="dashboard-overall-col" style={{ minWidth: 110, display: "flex", flexDirection: "column", alignItems: "center" }}>
+            <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 700, textTransform: "uppercase", letterSpacing: ".5px", textAlign: "center" }}>
               Overall Average
             </div>
             <div
+              className="overall-grade-value"
               style={{
-                fontSize: 32,
-                fontWeight: 900,
-                color: overallGrade >= 75 ? "#16a34a" : "#dc2626",
-                lineHeight: 1.1,
+                display: "inline-flex",
+                flexDirection: "row",
+                alignItems: "flex-end",
+                justifyContent: "center",
+                gap: 6,
+                color: overallGradeNumber >= 75 ? "#16a34a" : "#dc2626",
+                lineHeight: 1,
                 marginTop: 2,
               }}
             >
-              {overallGrade}%
+              <span className="overall-grade-whole">{overallWhole}</span>
+              <span className="overall-grade-decimal">.{overallDecimal} %</span>
             </div>
           </div>
 
           {/* Per-course grade chips */}
-          <div style={{ display: "flex", gap: 10, flexWrap: "wrap", flex: 1 }}>
+          <div className="dashboard-grades-wrap" style={{ display: "flex", gap: 10, flexWrap: "wrap", flex: 1 }}>
             {grades.map((g, i) => (
               <div
                 key={i}
@@ -221,20 +242,32 @@ export default function StudentDashboardPage() {
                   minWidth: 120,
                 }}
               >
-                <div style={{ fontSize: 11, fontWeight: 800, color: "#2f6fb3" }}>
+                <div className="dashboard-grade-code" style={{ fontSize: 11, fontWeight: 800, color: "#2f6fb3" }}>
                   {g.courses?.code || "N/A"}
                 </div>
-                <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 130 }}>
+                <div
+                  className="dashboard-grade-title"
+                  style={{
+                    fontSize: 11,
+                    color: "#6b7280",
+                    marginBottom: 4,
+                    whiteSpace: "normal",
+                    overflowWrap: "anywhere",
+                    lineHeight: 1.2,
+                    minHeight: 26,
+                  }}
+                >
                   {g.courses?.title || "Course"}
                 </div>
-                <div style={{ display: "flex", gap: 6, fontSize: 11 }}>
+                <div className="dashboard-grade-metrics" style={{ display: "flex", gap: 6, fontSize: 11 }}>
                   <span>P: <b>{g.prelim ?? "—"}</b></span>
                   <span>M: <b>{g.midterm ?? "—"}</b></span>
                   <span>F: <b>{g.final_exam ?? "—"}</b></span>
                 </div>
                 <div
+                  className="dashboard-grade-final"
                   style={{
-                    marginTop: 3,
+                    marginTop: "auto",
                     fontSize: 13,
                     fontWeight: 900,
                     color:
@@ -312,7 +345,7 @@ export default function StudentDashboardPage() {
           <div className="featuredWrap">
             {/* Left image */}
             <div className="featuredImg">
-              {renderCourseCover(item)}
+              {renderCourseCover(item, item?.title, "feature", "eager")}
             </div>
 
             {/* Center text */}
@@ -329,7 +362,7 @@ export default function StudentDashboardPage() {
 
             {/* Right image (next course preview) */}
             <div className="featuredImg">
-              {renderCourseCover(featured[(idx + 1) % featured.length] || item, "next")}
+              {renderCourseCover(featured[(idx + 1) % featured.length] || item, "next", "feature", "lazy")}
             </div>
           </div>
 
@@ -403,7 +436,7 @@ export default function StudentDashboardPage() {
         ) : (
           filteredCourses.map((c) => (
             <div key={c.id || c.title} className="courseCardImg">
-              {renderCourseCover(c)}
+              {renderCourseCover(c, c?.title, "card", "lazy")}
               <div className="courseOverlay">
                 <div className="courseOverlayText">
                   <div style={{ fontSize: 11, opacity: 0.8, fontWeight: 700 }}>{c.code}</div>
@@ -426,23 +459,135 @@ export default function StudentDashboardPage() {
       </div>
 
       <style jsx>{`
+        .overall-grade-value {
+          display: inline-flex;
+          align-items: flex-end;
+          justify-content: center;
+          gap: 6px;
+        }
+
         @media (max-width: 700px) {
           .dashboard-summary {
-            gap: 12px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 14px !important;
+            width: 100%;
+            max-width: 100%;
+            overflow-x: hidden;
+            border-radius: 18px;
+            box-sizing: border-box;
+            padding: 12px !important;
+          }
+
+          .dashboard-overall-col {
+            width: 100%;
+            align-items: center !important;
+          }
+
+          .overall-grade-whole {
+            font-size: 96px;
+            font-weight: 900;
+            line-height: 0.82;
+            transform: none;
+          }
+
+          .overall-grade-decimal {
+            font-size: 40px;
+            font-weight: 900;
+            line-height: 1;
+            margin-top: 0;
+          }
+
+          .dashboard-grades-wrap {
+            display: grid !important;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px !important;
+            width: 100%;
+            max-height: min(52vh, 460px);
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 0 6px;
+            box-sizing: border-box;
+            align-items: stretch;
           }
 
           .dashboard-grade-chip {
             width: 100%;
             min-width: 0 !important;
+            max-width: none;
+            min-height: 124px;
+            padding: 9px !important;
+            display: flex;
+            flex-direction: column;
+            justify-self: stretch;
+            box-sizing: border-box;
+            background: #ffffff !important;
+            border: 1px solid rgba(0, 0, 0, 0.08) !important;
+            border-radius: 12px;
+            box-shadow:
+              0 4px 12px rgba(17, 24, 39, 0.05),
+              inset 0 1px 0 rgba(255, 255, 255, 0.8);
           }
 
           .dashboard-view-grades {
-            width: 100%;
-            align-self: stretch !important;
+            width: calc(100% - 12px);
+            max-width: calc(100% - 12px);
+            margin: 0 auto;
+            align-self: center !important;
+            box-sizing: border-box;
+            border-radius: 12px;
           }
 
           .dashboard-carousel-nav {
             display: none;
+          }
+        }
+
+        @media (min-width: 701px) {
+          .dashboard-grades-wrap {
+            gap: 14px !important;
+          }
+
+          .dashboard-grade-chip {
+            min-width: 130px !important;
+            min-height: 105px;
+            padding: 10px 12px !important;
+          }
+
+          .dashboard-grade-code {
+            font-size: 16px !important;
+          }
+
+          .dashboard-grade-title {
+            font-size: 16px !important;
+            line-height: 1.25 !important;
+            min-height: 28px;
+            margin-bottom: 6px !important;
+          }
+
+          .dashboard-grade-metrics {
+            font-size: 16px !important;
+            gap: 8px !important;
+          }
+
+          .dashboard-grade-final {
+            font-size: 20px !important;
+            line-height: 1 !important;
+          }
+
+          .overall-grade-whole {
+            font-size: 112px;
+            font-weight: 900;
+            line-height: 0.82;
+            transform: none;
+          }
+
+          .overall-grade-decimal {
+            font-size: 56px;
+            font-weight: 900;
+            line-height: 1;
+            margin-top: 0;
           }
         }
       `}</style>
