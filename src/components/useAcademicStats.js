@@ -3,8 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 
+function normalizePct(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return null;
+  if (n > 0 && n <= 1) return n * 100;
+  return n;
+}
+
 function letterFromScore(score) {
-  const s = Number(score);
+  const s = normalizePct(score);
   if (!Number.isFinite(s)) return null; // IMPORTANT: ignore null/NaN
   if (s >= 93) return "A";
   if (s >= 90) return "A-";
@@ -136,7 +143,7 @@ export function useAcademicStats({ limit = 300, assumeUnitsPerCourse = 3 } = {})
 
     // ✅ only include rows with a real final_grade
     const validGrades = (grades || [])
-      .map((g) => ({ ...g, num: Number(g.final_grade) }))
+      .map((g) => ({ ...g, num: normalizePct(g.final_grade) }))
       .filter((g) => Number.isFinite(g.num)); // <-- critical fix
 
     let sumPoints = 0;

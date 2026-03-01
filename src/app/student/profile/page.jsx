@@ -34,8 +34,15 @@ function percent(n, total) {
   return Math.round((n / total) * 100);
 }
 
+function normalizePct(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return null;
+  if (n > 0 && n <= 1) return n * 100;
+  return n;
+}
+
 function bucketFromFinal(finalGrade) {
-  const g = Number(finalGrade);
+  const g = normalizePct(finalGrade);
   if (!Number.isFinite(g)) return null;
   if (g >= 95) return "A";
   if (g >= 90) return "A-";
@@ -88,7 +95,7 @@ export default function StudentProfilePage() {
     ]);
 
     const numeric = (gradesData || [])
-      .map((x) => Number(x.final_grade))
+      .map((x) => normalizePct(x.final_grade))
       .filter((n) => Number.isFinite(n));
     setFinalGrades(numeric);
 

@@ -7,13 +7,22 @@ import { supabase } from "@/app/lib/supabaseClient";
 
 const LETTER_ORDER = ["A", "A-", "B+", "B", "C+", "D", "F"];
 
+function normalizePct(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return null;
+  if (n > 0 && n <= 1) return n * 100;
+  return n;
+}
+
 function percentToLetter(pct) {
-  if (pct >= 90) return "A";
-  if (pct >= 85) return "A-";
-  if (pct >= 80) return "B+";
-  if (pct >= 75) return "B";
-  if (pct >= 70) return "C+";
-  if (pct >= 60) return "D";
+  const p = normalizePct(pct);
+  if (!Number.isFinite(p)) return "F";
+  if (p >= 90) return "A";
+  if (p >= 85) return "A-";
+  if (p >= 80) return "B+";
+  if (p >= 75) return "B";
+  if (p >= 70) return "C+";
+  if (p >= 60) return "D";
   return "F";
 }
 
@@ -188,7 +197,7 @@ export function AcademicStatsProvider({ children }) {
   const computed = useMemo(() => {
     // only include rows with real numeric final_grade
     const numericGrades = (grades || [])
-      .map((g) => Number(g.final_grade))
+      .map((g) => normalizePct(g.final_grade))
       .filter((n) => Number.isFinite(n));
 
     const hasGrades = numericGrades.length > 0;

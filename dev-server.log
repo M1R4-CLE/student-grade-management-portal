@@ -1,0 +1,24 @@
+
+> student-grade-management-portal@0.1.0 dev
+> next dev --port 3000
+
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of D:\STUDENT GRADE MANAGEMENT SYSTEM\package-lock.json as the root directory.
+ To silence this warning, set `turbopack.root` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#root-directory for more information.
+ Detected additional lockfiles: 
+   * D:\STUDENT GRADE MANAGEMENT SYSTEM\STUDENT GRADE MANAGEMENT SYSTEM\package-lock.json
+
+▲ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.12:3000
+- Environments: .env.local
+
+✓ Starting...
+Creating turbopack project {
+  dir: 'D:\\STUDENT GRADE MANAGEMENT SYSTEM\\STUDENT GRADE MANAGEMENT SYSTEM',
+  testMode: true
+}
+✓ Ready in 3.1s
+ GET / 307 in 1214ms (compile: 989ms, render: 225ms)
+ GET /login 200 in 219ms (compile: 98ms, render: 121ms)

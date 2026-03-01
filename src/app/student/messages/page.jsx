@@ -849,7 +849,8 @@ const title = {
 const topBar = {
   display: "flex",
   alignItems: "center",
-  gap: 12,
+  columnGap: 12,
+  rowGap: 0,
   paddingBottom: 10,
 };
 

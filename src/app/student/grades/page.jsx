@@ -4,14 +4,35 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 
+function normalizePct(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return null;
+  if (n > 0 && n <= 1) return n * 100;
+  return n;
+}
+
+function fmtPct(v) {
+  const n = normalizePct(v);
+  if (n == null) return "—";
+  return `${n.toFixed(0)}%`;
+}
+
+function computeFinal(prelim, midterm, finalExam) {
+  const p = normalizePct(prelim) ?? 0;
+  const m = normalizePct(midterm) ?? 0;
+  const f = normalizePct(finalExam) ?? 0;
+  return +(p * 0.3 + m * 0.3 + f * 0.4).toFixed(2);
+}
+
 function gradeColor(val) {
-  if (val == null) return "#9ca3af";
-  return Number(val) >= 75 ? "#16a34a" : "#dc2626";
+  const g = normalizePct(val);
+  if (g == null) return "#9ca3af";
+  return g >= 75 ? "#16a34a" : "#dc2626";
 }
 
 function gradeRemark(val) {
-  if (val == null) return "Pending";
-  const g = Number(val);
+  const g = normalizePct(val);
+  if (g == null) return "Pending";
   if (g >= 90) return "Excellent";
   if (g >= 80) return "Very Good";
   if (g >= 75) return "Passed";
@@ -107,6 +128,13 @@ export default function StudentGradesPage() {
         .map((cid) => {
           const c = courseMap.get(cid);
           const g = gradeMap.get(cid);
+          const hasComponents = g?.prelim != null || g?.midterm != null || g?.final_exam != null;
+          const final =
+            g?.final_grade != null
+              ? normalizePct(g.final_grade)
+              : hasComponents
+              ? computeFinal(g?.prelim, g?.midterm, g?.final_exam)
+              : null;
           return {
             code: c?.code || "N/A",
             name: c?.title || "N/A",
@@ -114,7 +142,7 @@ export default function StudentGradesPage() {
             prelim: g?.prelim != null ? g.prelim : null,
             midterm: g?.midterm != null ? g.midterm : null,
             final_exam: g?.final_exam != null ? g.final_exam : null,
-            final: g?.final_grade != null ? g.final_grade : null,
+            final,
           };
         })
         .sort((a, b) => String(a.code).localeCompare(String(b.code)));
@@ -209,15 +237,15 @@ export default function StudentGradesPage() {
                     <div className="grades-mobile-instructor">{g.instructor}</div>
 
                     <div className="grades-mobile-metrics">
-                      <span>P: <b>{g.prelim != null ? `${g.prelim}%` : "-"}</b></span>
-                      <span>M: <b>{g.midterm != null ? `${g.midterm}%` : "-"}</b></span>
-                      <span>F: <b>{g.final_exam != null ? `${g.final_exam}%` : "-"}</b></span>
+                      <span>P: <b>{fmtPct(g.prelim)}</b></span>
+                      <span>M: <b>{fmtPct(g.midterm)}</b></span>
+                      <span>F: <b>{fmtPct(g.final_exam)}</b></span>
                     </div>
                   </div>
 
                   <div className="grades-mobile-right" style={{ color: gradeColor(g.final) }}>
                     <div className="grades-mobile-final-label">Final:</div>
-                    <div className="grades-mobile-final-value">{g.final != null ? `${g.final}%` : "-"}</div>
+                    <div className="grades-mobile-final-value">{fmtPct(g.final)}</div>
                   </div>
                 </div>
               </div>
@@ -256,12 +284,12 @@ export default function StudentGradesPage() {
                   </Td>
                   <Td>{g.name}</Td>
                   <Td style={{ color: "#6b7280" }}>{g.instructor}</Td>
-                  <Td center>{g.prelim != null ? `${g.prelim}%` : "-"}</Td>
-                  <Td center>{g.midterm != null ? `${g.midterm}%` : "-"}</Td>
-                  <Td center>{g.final_exam != null ? `${g.final_exam}%` : "-"}</Td>
+                  <Td center>{fmtPct(g.prelim)}</Td>
+                  <Td center>{fmtPct(g.midterm)}</Td>
+                  <Td center>{fmtPct(g.final_exam)}</Td>
                   <Td center>
                     <span style={{ fontWeight: 900, fontSize: 15, color: gradeColor(g.final) }}>
-                      {g.final != null ? `${g.final}%` : "-"}
+                      {fmtPct(g.final)}
                     </span>
                   </Td>
                   <Td center>

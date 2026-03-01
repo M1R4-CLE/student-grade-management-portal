@@ -4,6 +4,19 @@ import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 
+function normalizePct(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return null;
+  if (n > 0 && n <= 1) return n * 100;
+  return n;
+}
+
+function fmtPct(v) {
+  const n = normalizePct(v);
+  if (n == null) return "—";
+  return `${n.toFixed(0)}%`;
+}
+
 function getCourseImg(title = "") {
   const t = title.toLowerCase();
   if (t.includes("data struct") || t.includes("algorithm")) return "/images/dsa.jpg";
@@ -173,9 +186,11 @@ export default function StudentDashboardPage() {
 
   // ── Overall grade average ─────────────────────────────────────────────────
   const overallGrade = useMemo(() => {
-    const valid = grades.filter((g) => g.final_grade != null);
+    const valid = grades
+      .map((g) => normalizePct(g.final_grade))
+      .filter((g) => Number.isFinite(g));
     if (!valid.length) return null;
-    const avg = valid.reduce((s, g) => s + Number(g.final_grade), 0) / valid.length;
+    const avg = valid.reduce((s, g) => s + g, 0) / valid.length;
     return avg.toFixed(2);
   }, [grades]);
   const overallGradeDisplay = overallGrade ?? "0.00";
@@ -261,9 +276,9 @@ export default function StudentDashboardPage() {
                   {g.courses?.title || "Course"}
                 </div>
                 <div className="dashboard-grade-metrics" style={{ display: "flex", gap: 6, fontSize: 11 }}>
-                  <span>P: <b>{g.prelim ?? "—"}</b></span>
-                  <span>M: <b>{g.midterm ?? "—"}</b></span>
-                  <span>F: <b>{g.final_exam ?? "—"}</b></span>
+                  <span>P: <b>{fmtPct(g.prelim)}</b></span>
+                  <span>M: <b>{fmtPct(g.midterm)}</b></span>
+                  <span>F: <b>{fmtPct(g.final_exam)}</b></span>
                 </div>
                 <div
                   className="dashboard-grade-final"
@@ -271,16 +286,11 @@ export default function StudentDashboardPage() {
                     marginTop: "auto",
                     fontSize: 13,
                     fontWeight: 900,
-                    color:
-                      g.final_grade == null
-                        ? "#9ca3af"
-                        : g.final_grade >= 75
-                        ? "#16a34a"
-                        : "#dc2626",
+                    color: normalizePct(g.final_grade) == null ? "#9ca3af" : normalizePct(g.final_grade) >= 75 ? "#16a34a" : "#dc2626",
                   }}
                 >
                   Final:{" "}
-                  {g.final_grade != null ? `${g.final_grade}%` : "Pending"}
+                  {normalizePct(g.final_grade) != null ? `${normalizePct(g.final_grade).toFixed(0)}%` : "Pending"}
                 </div>
               </div>
             ))}
@@ -650,3 +660,4 @@ export default function StudentDashboardPage() {
     </>
   );
 }
+

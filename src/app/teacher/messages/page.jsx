@@ -9,8 +9,11 @@ import { supabase } from "@/app/lib/supabaseClient";
 import { useRouter, useSearchParams } from "next/navigation";
 
 function fmtTime(ts) {
-  try { return new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
-  catch { return ""; }
+  try {
+    return new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+  } catch {
+    return "";
+  }
 }
 
 function computeFolder(m, userId) {
@@ -24,30 +27,33 @@ function computeFolder(m, userId) {
 export default function TeacherMessagesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
+
   const [isMobile, setIsMobile] = useState(false);
 
-  const [folder, setFolder]         = useState("inbox");
-  const [search, setSearch]         = useState("");
-  const [pageSize, setPageSize]     = useState(20);
+  const [folder, setFolder] = useState("inbox");
+  const [search, setSearch] = useState("");
+  const [pageSize, setPageSize] = useState(20);
 
-  const [composeOpen, setComposeOpen]       = useState(false);
+  const [composeOpen, setComposeOpen] = useState(false);
   const [composeRecipientId, setComposeRecipientId] = useState("");
   const [recipientOptions, setRecipientOptions] = useState([]);
   const [composeSubject, setComposeSubject] = useState("");
-  const [composeBody, setComposeBody]       = useState("");
-  const [openMsg, setOpenMsg]               = useState(null);
+  const [composeBody, setComposeBody] = useState("");
+  const [openMsg, setOpenMsg] = useState(null);
 
   const [selectedIds, setSelectedIds] = useState([]);
-  const [status, setStatus]           = useState("");
-  const [sending, setSending]         = useState(false);
-  const [toast, setToast]             = useState("");
+  const [status, setStatus] = useState("");
+  const [sending, setSending] = useState(false);
+  const [toast, setToast] = useState("");
 
-  const [userId, setUserId]   = useState("");
-  const [myRole, setMyRole]   = useState("");
+  const [userId, setUserId] = useState("");
+  const [myRole, setMyRole] = useState("");
   const [loading, setLoading] = useState(true);
   const [messages, setMessages] = useState([]);
+
   const openId = searchParams.get("open");
 
+  // Responsive
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 700px)");
     const apply = () => setIsMobile(mq.matches);
@@ -56,6 +62,7 @@ export default function TeacherMessagesPage() {
     return () => mq.removeEventListener("change", apply);
   }, []);
 
+  // Load messages + realtime
   useEffect(() => {
     let channelA, channelB, alive = true;
 
@@ -80,27 +87,47 @@ export default function TeacherMessagesPage() {
     const run = async () => {
       const { data: sessionData } = await supabase.auth.getSession();
       const user = sessionData?.session?.user;
-      if (!user) { router.replace("/login"); return; }
+      if (!user) {
+        router.replace("/login");
+        return;
+      }
 
       const { data: profile } = await supabase
-        .from("profiles").select("role").eq("id", user.id).single();
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .single();
+
       const role = String(profile?.role || "").trim().toLowerCase();
-      if (!profile || role !== "teacher") { router.replace("/student/dashboard"); return; }
+      if (!profile || role !== "teacher") {
+        router.replace("/student/dashboard");
+        return;
+      }
 
       if (alive) {
         setUserId(user.id);
         setMyRole(role);
         setLoading(false);
       }
+
       await loadMessages(user.id);
 
-      channelA = supabase.channel("teacher-msg-in")
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `recipient_id=eq.${user.id}` },
-          () => loadMessages(user.id))
+      channelA = supabase
+        .channel("teacher-msg-in")
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "messages", filter: `recipient_id=eq.${user.id}` },
+          () => loadMessages(user.id)
+        )
         .subscribe();
-      channelB = supabase.channel("teacher-msg-out")
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages", filter: `sender_id=eq.${user.id}` },
-          () => loadMessages(user.id))
+
+      channelB = supabase
+        .channel("teacher-msg-out")
+        .on(
+          "postgres_changes",
+          { event: "INSERT", schema: "public", table: "messages", filter: `sender_id=eq.${user.id}` },
+          () => loadMessages(user.id)
+        )
         .subscribe();
     };
 
@@ -112,101 +139,101 @@ export default function TeacherMessagesPage() {
     };
   }, [router]);
 
+  /**
+   * ✅ FIXED + ORGANIZED RECIPIENT LOADER
+   * - Teacher: recipients = students enrolled in YOUR courses
+   * - We fetch profiles THROUGH the enrollment join (single query)
+   *   to avoid the common RLS problem of "profiles .in(ids)" returning fewer rows.
+   */
   const loadRecipients = async () => {
+    setStatus("");
     setRecipientOptions([]);
     setComposeRecipientId("");
 
     if (!userId || !myRole) return;
 
+    // Teacher -> Students in teacher's courses
     if (myRole === "teacher") {
       const { data, error } = await supabase
         .from("enrollments")
         .select(`
           student_id,
-          courses!inner ( teacher_id )
+          student:profiles!enrollments_student_id_fkey (
+            id,
+            full_name,
+            email,
+            role
+          ),
+          courses!inner (
+            teacher_id
+          )
         `)
         .eq("courses.teacher_id", userId);
 
       if (error) {
-        console.error(error);
+        console.error("loadRecipients teacher error:", error);
         setStatus(error.message);
         return;
       }
 
-      const studentIds = [...new Set((data || []).map((r) => r.student_id))];
-      if (studentIds.length === 0) {
-        setRecipientOptions([]);
-        return;
-      }
+      const list = (data || [])
+        .map((r) => r.student)
+        .filter(Boolean);
 
-      const { data: students, error: stuErr } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, role")
-        .in("id", studentIds)
-        .order("full_name", { ascending: true });
+      // Deduplicate by id
+      const unique = Array.from(new Map(list.map((p) => [p.id, p])).values())
+        .sort((a, b) => String(a.full_name || "").localeCompare(String(b.full_name || "")));
 
-      if (stuErr) {
-        console.error(stuErr);
-        setStatus(stuErr.message);
-        return;
-      }
-
-      setRecipientOptions(students || []);
+      setRecipientOptions(unique);
       return;
     }
 
+    // (Kept for completeness if you reuse this page elsewhere)
+    // Student -> Teachers of student's enrolled courses
     if (myRole === "student") {
       const { data, error } = await supabase
         .from("enrollments")
         .select(`
-          courses!inner ( teacher_id )
+          courses!inner ( teacher_id ),
+          teacher:profiles!courses_teacher_id_fkey (
+            id,
+            full_name,
+            email,
+            role
+          )
         `)
         .eq("student_id", userId);
 
       if (error) {
-        console.error(error);
+        console.error("loadRecipients student error:", error);
         setStatus(error.message);
         return;
       }
 
-      const teacherIds = [...new Set((data || []).map((r) => r.courses.teacher_id))];
-      if (teacherIds.length === 0) {
-        setRecipientOptions([]);
-        return;
-      }
+      const list = (data || [])
+        .map((r) => r.teacher)
+        .filter(Boolean);
 
-      const { data: teachers, error: tErr } = await supabase
-        .from("profiles")
-        .select("id, full_name, email, role")
-        .in("id", teacherIds)
-        .order("full_name", { ascending: true });
+      const unique = Array.from(new Map(list.map((p) => [p.id, p])).values())
+        .sort((a, b) => String(a.full_name || "").localeCompare(String(b.full_name || "")));
 
-      if (tErr) {
-        console.error(tErr);
-        setStatus(tErr.message);
-        return;
-      }
-
-      setRecipientOptions(teachers || []);
+      setRecipientOptions(unique);
     }
   };
 
+  // Toast on new message
   useEffect(() => {
     if (!userId) return;
 
     const channel = supabase
       .channel("realtime-messages-teacher")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        async (payload) => {
-          const m = payload.new;
-          if (m.recipient_id === userId) {
-            setToast("New message received!");
-            setTimeout(() => setToast(""), 3000);
-          }
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "messages" }, async (payload) => {
+        const m = payload.new;
+        if (m.recipient_id === userId) {
+          setToast("New message received!");
+          setTimeout(() => setToast(""), 3000);
         }
-      )
+      })
       .subscribe();
 
     return () => {
@@ -217,39 +244,49 @@ export default function TeacherMessagesPage() {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return messages
-      .filter(m => computeFolder(m, userId) !== "hidden")
-      .filter(m => computeFolder(m, userId) === folder)
-      .filter(m => !q || m.subject?.toLowerCase().includes(q) || m.body?.toLowerCase().includes(q)
-        || m.sender?.full_name?.toLowerCase().includes(q)
-        || m.recipient?.full_name?.toLowerCase().includes(q))
+      .filter((m) => computeFolder(m, userId) !== "hidden")
+      .filter((m) => computeFolder(m, userId) === folder)
+      .filter(
+        (m) =>
+          !q ||
+          m.subject?.toLowerCase().includes(q) ||
+          m.body?.toLowerCase().includes(q) ||
+          m.sender?.full_name?.toLowerCase().includes(q) ||
+          m.recipient?.full_name?.toLowerCase().includes(q)
+      )
       .slice(0, pageSize);
   }, [messages, folder, search, pageSize, userId]);
 
-  const toggleSelect = (id) => setSelectedIds(prev =>
-    prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
-  );
+  const toggleSelect = (id) =>
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+
   const selectAll = () =>
-    setSelectedIds(filtered.length === selectedIds.length ? [] : filtered.map(m => m.id));
+    setSelectedIds(filtered.length === selectedIds.length ? [] : filtered.map((m) => m.id));
 
   const trashSelected = async () => {
     if (!selectedIds.length) return;
     const now = new Date().toISOString();
+
     for (const id of selectedIds) {
-      const msg = messages.find(m => m.id === id);
+      const msg = messages.find((m) => m.id === id);
       if (!msg) continue;
       const isSender = msg.sender_id === userId;
-      await supabase.from("messages").update(
-        isSender ? { sender_trashed_at: now } : { recipient_trashed_at: now }
-      ).eq("id", id);
+      await supabase
+        .from("messages")
+        .update(isSender ? { sender_trashed_at: now } : { recipient_trashed_at: now })
+        .eq("id", id);
     }
-    setMessages(prev =>
-      prev.map(m => {
+
+    setMessages((prev) =>
+      prev.map((m) => {
         if (!selectedIds.includes(m.id)) return m;
         const isSender = m.sender_id === userId;
-        return isSender ? { ...m, sender_trashed_at: new Date().toISOString() }
-          : { ...m, recipient_trashed_at: new Date().toISOString() };
+        return isSender
+          ? { ...m, sender_trashed_at: now }
+          : { ...m, recipient_trashed_at: now };
       })
     );
+
     setSelectedIds([]);
     setStatus("Moved to Trash.");
     setTimeout(() => setStatus(""), 3000);
@@ -257,28 +294,25 @@ export default function TeacherMessagesPage() {
 
   const deleteForeverSelected = async () => {
     if (!selectedIds.length) return;
-  
+
     const ids = [...selectedIds];
-  
+
     // remove from UI instantly
     setMessages((prev) => prev.filter((m) => !ids.includes(m.id)));
     setSelectedIds([]);
-  
+
     for (const id of ids) {
-      const { error } = await supabase.rpc("delete_message_forever", {
-        p_message_id: id,
-      });
-  
+      const { error } = await supabase.rpc("delete_message_forever", { p_message_id: id });
       if (error) {
         console.error("Delete forever failed:", error);
         setStatus("Delete forever failed.");
         setTimeout(() => setStatus(""), 3000);
       }
     }
-  
+
     setStatus("Deleted forever (only for you).");
     setTimeout(() => setStatus(""), 3000);
-  }; 
+  };
 
   const replyToMessage = async (msg) => {
     if (!msg) return;
@@ -286,20 +320,16 @@ export default function TeacherMessagesPage() {
     await loadRecipients();
 
     const originalSubject = msg.subject?.trim() || "(No Subject)";
-    const subject = originalSubject.toLowerCase().startsWith("re:")
-      ? originalSubject
-      : `Re: ${originalSubject}`;
+    const subj = originalSubject.toLowerCase().startsWith("re:") ? originalSubject : `Re: ${originalSubject}`;
 
     setComposeRecipientId(msg.sender_id);
-    setComposeSubject(subject);
+    setComposeSubject(subj);
     setComposeBody("");
     setComposeOpen(true);
   };
 
   const sendMessage = async () => {
     if (sending) return;
-
-    console.log("sendMessage fired", new Date().toISOString());
 
     if (!composeRecipientId) {
       setStatus("Please select a recipient.");
@@ -322,20 +352,26 @@ export default function TeacherMessagesPage() {
     setSending(true);
     setStatus("Sending...");
 
-    const { data: msg, error } = await supabase.from("messages").insert([
-      {
-        sender_id: senderId,
-        recipient_id: composeRecipientId,
-        subject: composeSubject.trim() || "(No Subject)",
-        body: composeBody.trim(),
-      },
-    ]).select("id").single();
+    const { data: msg, error } = await supabase
+      .from("messages")
+      .insert([
+        {
+          sender_id: senderId,
+          recipient_id: composeRecipientId,
+          subject: composeSubject.trim() || "(No Subject)",
+          body: composeBody.trim(),
+        },
+      ])
+      .select("id")
+      .single();
 
     if (error) {
       setStatus(error.message);
       setSending(false);
       return;
     }
+
+    // Notification (kept from your code)
     if (msg?.id) {
       const recipient = recipientOptions.find((p) => p.id === composeRecipientId);
       const recipientRole = recipient?.role;
@@ -364,20 +400,16 @@ export default function TeacherMessagesPage() {
 
   const markAsRead = async (msgId) => {
     const now = new Date().toISOString();
-    const { error } = await supabase
-      .from("messages")
-      .update({ recipient_read_at: now })
-      .eq("id", msgId);
+    const { error } = await supabase.from("messages").update({ recipient_read_at: now }).eq("id", msgId);
     if (error) {
       console.error(error);
       return;
     }
-    setMessages((prev) =>
-      prev.map((x) => (x.id === msgId ? { ...x, recipient_read_at: now } : x))
-    );
+    setMessages((prev) => prev.map((x) => (x.id === msgId ? { ...x, recipient_read_at: now } : x)));
     setOpenMsg((prev) => (prev?.id === msgId ? { ...prev, recipient_read_at: now } : prev));
   };
 
+  // Open message via ?open=<id>
   useEffect(() => {
     if (!openId) return;
     if (!userId) return;
@@ -423,6 +455,7 @@ export default function TeacherMessagesPage() {
 
   if (loading) return <div style={{ padding: 40 }}>Loading Messages</div>;
 
+  // Responsive styles
   const wrapStyle = isMobile ? { ...wrap, padding: 10 } : wrap;
   const titleStyleLocal = isMobile ? { ...titleStyle, fontSize: 42, marginBottom: 10 } : titleStyle;
   const cardStyle = isMobile
@@ -438,7 +471,9 @@ export default function TeacherMessagesPage() {
         alignItems: "stretch",
       }
     : topBar;
-  const composeBtnStyle = isMobile ? { ...composeBtn, width: "100%", minWidth: 0, height: 38, boxSizing: "border-box" } : composeBtn;
+  const composeBtnStyle = isMobile
+    ? { ...composeBtn, width: "100%", minWidth: 0, height: 38, boxSizing: "border-box" }
+    : composeBtn;
   const selectAllStyle = isMobile
     ? {
         ...selectAll_,
@@ -495,11 +530,8 @@ export default function TeacherMessagesPage() {
 
   return (
     <div style={wrapStyle}>
-      {toast && (
-        <div style={toastStyle}>
-          {toast}
-        </div>
-      )}
+      {toast && <div style={toastStyle}>{toast}</div>}
+
       <div style={titleStyleLocal}>Messages</div>
 
       <div style={cardStyle}>
@@ -517,20 +549,30 @@ export default function TeacherMessagesPage() {
           >
             Compose
           </button>
+
           <div style={selectAllStyle}>
-            <input type="checkbox"
+            <input
+              type="checkbox"
               checked={selectedIds.length === filtered.length && filtered.length > 0}
               onChange={selectAll}
             />
             <span style={selectAllTextStyle}>Select All</span>
           </div>
+
           <div style={searchWrapStyle}>
             <span style={searchIcon}>Search</span>
-            <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search mail" style={searchInputStyle} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search mail"
+              style={searchInputStyle}
+            />
           </div>
-          <select value={pageSize} onChange={e => setPageSize(Number(e.target.value))} style={pageSelectStyle}>
-            {[10, 20, 50, 100].map(n => <option key={n}>{n}</option>)}
+
+          <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} style={pageSelectStyle}>
+            {[10, 20, 50, 100].map((n) => (
+              <option key={n}>{n}</option>
+            ))}
           </select>
         </div>
 
@@ -539,7 +581,7 @@ export default function TeacherMessagesPage() {
           {/* Folders */}
           <div style={foldersStyleLocal}>
             <Folder label="Inbox" active={folder === "inbox"} onClick={() => setFolder("inbox")} buttonStyle={folderBtnStyle} />
-            <Folder label="Sent"  active={folder === "sent"}  onClick={() => setFolder("sent")} buttonStyle={folderBtnStyle} />
+            <Folder label="Sent" active={folder === "sent"} onClick={() => setFolder("sent")} buttonStyle={folderBtnStyle} />
             <Folder label="Trash" active={folder === "trash"} onClick={() => setFolder("trash")} buttonStyle={folderBtnStyle} />
           </div>
 
@@ -549,16 +591,21 @@ export default function TeacherMessagesPage() {
             {filtered.length === 0 ? (
               <div style={empty}>No messages in this folder.</div>
             ) : (
-              filtered.map(m => {
+              filtered.map((m) => {
                 const isMe = m.sender_id === userId;
                 const name = isMe
                   ? (m.recipient?.full_name || m.recipient?.email || "")
                   : (m.sender?.full_name || m.sender?.email || "");
                 const unread = !isMe && !m.recipient_read_at;
+
                 return (
                   <div
                     key={m.id}
-                    style={{ ...rowStyle, background: unread ? "rgba(47,111,179,0.05)" : "transparent", cursor: "pointer" }}
+                    style={{
+                      ...rowStyle,
+                      background: unread ? "rgba(47,111,179,0.05)" : "transparent",
+                      cursor: "pointer",
+                    }}
                     onClick={async () => {
                       setOpenMsg(m);
                       if (m.recipient_id === userId && !m.recipient_read_at) {
@@ -567,19 +614,28 @@ export default function TeacherMessagesPage() {
                     }}
                   >
                     <div style={{ paddingLeft: 6 }}>
-                      <input type="checkbox"
+                      <input
+                        type="checkbox"
                         checked={selectedIds.includes(m.id)}
                         onChange={() => toggleSelect(m.id)}
                         onClick={(e) => e.stopPropagation()}
                       />
                     </div>
+
                     <div style={{ ...senderStyle, fontWeight: unread ? 900 : 700 }}>
                       {isMe ? `To: ${name}` : name}
                     </div>
+
                     <div style={subjectLineStyle}>
                       <span style={{ fontWeight: unread ? 800 : 500 }}>{m.subject || "(no subject)"}</span>
-                      {m.body ? <span style={{ color: "#6b7280", marginLeft: isMobile ? 0 : 6 }}> {m.body.slice(0, 60)}</span> : null}
+                      {m.body ? (
+                        <span style={{ color: "#6b7280", marginLeft: isMobile ? 0 : 6 }}>
+                          {" "}
+                          {m.body.slice(0, 60)}
+                        </span>
+                      ) : null}
                     </div>
+
                     {!isMobile && <div style={time}>{fmtTime(m.created_at)}</div>}
                   </div>
                 );
@@ -599,6 +655,7 @@ export default function TeacherMessagesPage() {
               )}
               <span style={shownStyle}>Showing {filtered.length} messages</span>
             </div>
+
             {status && <div style={statusText}>{status}</div>}
           </div>
         </div>
@@ -612,6 +669,7 @@ export default function TeacherMessagesPage() {
               <span>New Message</span>
               <button onClick={() => setComposeOpen(false)} style={modalClose}>x</button>
             </div>
+
             <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
               <div>
                 <div style={label}>To</div>
@@ -628,28 +686,38 @@ export default function TeacherMessagesPage() {
                   ))}
                 </select>
               </div>
+
               <div>
                 <div style={label}>Subject</div>
-                <input value={composeSubject} onChange={e => setComposeSubject(e.target.value)}
-                  placeholder="Subject" style={composeInput} />
+                <input
+                  value={composeSubject}
+                  onChange={(e) => setComposeSubject(e.target.value)}
+                  placeholder="Subject"
+                  style={composeInput}
+                />
               </div>
+
               <textarea
                 value={composeBody}
-                onChange={e => setComposeBody(e.target.value)}
+                onChange={(e) => setComposeBody(e.target.value)}
                 placeholder="Write your message"
                 style={composeTextarea}
               />
+
               <div style={modalBtns}>
                 <button onClick={sendMessage} style={sendBtn} type="button" disabled={sending}>
                   {sending ? "Sending..." : "Send"}
                 </button>
-                <button onClick={() => setComposeOpen(false)} style={cancelBtn} type="button">Cancel</button>
+                <button onClick={() => setComposeOpen(false)} style={cancelBtn} type="button">
+                  Cancel
+                </button>
               </div>
             </div>
           </div>
         </div>
       )}
 
+      {/* Open message modal */}
       {openMsg && (
         <div style={modalBackdrop}>
           <div style={openModalCard}>
@@ -664,9 +732,7 @@ export default function TeacherMessagesPage() {
               <div><b>To:</b> {openMsg.recipient?.full_name || openMsg.recipient?.email || openMsg.recipient_id}</div>
             </div>
 
-            <div style={messageBodyBox}>
-              {openMsg.body || ""}
-            </div>
+            <div style={messageBodyBox}>{openMsg.body || ""}</div>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 12 }}>
               <button
@@ -690,13 +756,19 @@ export default function TeacherMessagesPage() {
 
 function Folder({ label, active, onClick, buttonStyle }) {
   return (
-    <button onClick={onClick}
+    <button
+      onClick={onClick}
       style={{ ...folderBtn, ...buttonStyle, background: active ? "#eef3fb" : "transparent" }}
-      type="button">
+      type="button"
+    >
       {label}
     </button>
   );
 }
+
+/* ===========================
+   Styles (kept as you wrote)
+   =========================== */
 
 const toastStyle = {
   position: "fixed",

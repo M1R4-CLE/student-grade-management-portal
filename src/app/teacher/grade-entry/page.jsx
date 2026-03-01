@@ -8,6 +8,20 @@ import { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/app/lib/supabaseClient";
 
+function normalizePct(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  if (n > 0 && n <= 1) return n * 100;
+  return n;
+}
+
+function computeFinal(prelim, midterm, finalExam) {
+  const p = normalizePct(prelim);
+  const m = normalizePct(midterm);
+  const f = normalizePct(finalExam);
+  return +(p * 0.3 + m * 0.3 + f * 0.4).toFixed(2);
+}
+
 export default function TeacherGradeEntryPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -138,9 +152,9 @@ export default function TeacherGradeEntryPage() {
   const saveRow = async (row) => {
     if (!selectedId) return;
 
-    const prelim     = parseFloat(row.prelim)     || 0;
-    const midterm    = parseFloat(row.midterm)    || 0;
-    const final_exam = parseFloat(row.final_exam) || 0;
+    const prelim     = normalizePct(row.prelim);
+    const midterm    = normalizePct(row.midterm);
+    const final_exam = normalizePct(row.final_exam);
 
     if ([prelim, midterm, final_exam].some(v => v < 0 || v > 100)) {
       setErr("Grades must be between 0 and 100.");
@@ -180,7 +194,7 @@ export default function TeacherGradeEntryPage() {
       setErr(error.message);
     } else {
       const selectedCourse = courses.find(c => String(c.id) === String(selectedId));
-      const finalGrade = Math.round((prelim * 0.3 + midterm * 0.3 + final_exam * 0.4) * 100) / 100;
+      const finalGrade = computeFinal(prelim, midterm, final_exam);
       const notifPayload = {
         user_id: row.studentId,
         type: "grade",
@@ -285,10 +299,7 @@ export default function TeacherGradeEntryPage() {
         }}>
           <div style={{ display: "grid", gap: 10 }}>
             {rows.map((row, i) => {
-              const p = parseFloat(row.prelim) || 0;
-              const m = parseFloat(row.midterm) || 0;
-              const fe = parseFloat(row.final_exam) || 0;
-              const fg = Math.round((p * 0.3 + m * 0.3 + fe * 0.4) * 100) / 100;
+              const fg = computeFinal(row.prelim, row.midterm, row.final_exam);
               const hasGrade = row.prelim !== "" || row.midterm !== "" || row.final_exam !== "";
               const isSaved = saved[row.studentId];
               const isSaving = saving[row.studentId];
@@ -407,10 +418,7 @@ export default function TeacherGradeEntryPage() {
             </thead>
             <tbody>
               {rows.map((row, i) => {
-                const p  = parseFloat(row.prelim)     || 0;
-                const m  = parseFloat(row.midterm)    || 0;
-                const fe = parseFloat(row.final_exam) || 0;
-                const fg = Math.round((p * 0.3 + m * 0.3 + fe * 0.4) * 100) / 100;
+                const fg = computeFinal(row.prelim, row.midterm, row.final_exam);
                 const hasGrade = row.prelim !== "" || row.midterm !== "" || row.final_exam !== "";
                 const isSaved  = saved[row.studentId];
                 const isSaving = saving[row.studentId];
