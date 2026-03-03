@@ -2,6 +2,7 @@ import { createBrowserClient } from '@supabase/ssr';
 
 let browserClient = null;
 let wrappedAuth = null;
+let invalidTokenHandled = false;
 
 function isInvalidRefreshTokenError(error) {
   const message = String(error?.message || "");
@@ -11,37 +12,74 @@ function isInvalidRefreshTokenError(error) {
   );
 }
 
+function clearStoredAuthTokens() {
+  if (typeof window === "undefined") return;
+
+  const clear = (store) => {
+    try {
+      const keys = [];
+      for (let i = 0; i < store.length; i += 1) {
+        const key = store.key(i);
+        if (key && key.startsWith("sb-") && key.endsWith("-auth-token")) {
+          keys.push(key);
+        }
+      }
+      keys.forEach((key) => store.removeItem(key));
+    } catch {
+      // best-effort cleanup only
+    }
+  };
+
+  clear(window.localStorage);
+  clear(window.sessionStorage);
+}
+
+async function handleInvalidRefreshToken(auth) {
+  if (invalidTokenHandled) return;
+  invalidTokenHandled = true;
+
+  await auth.signOut({ scope: "local" }).catch(() => {});
+  clearStoredAuthTokens();
+}
+
+async function safeAuthCall(auth, method, args, fallbackResult) {
+  try {
+    const result = await auth[method](...args);
+    if (isInvalidRefreshTokenError(result?.error)) {
+      await handleInvalidRefreshToken(auth);
+      return fallbackResult;
+    }
+    return result;
+  } catch (error) {
+    if (isInvalidRefreshTokenError(error)) {
+      await handleInvalidRefreshToken(auth);
+      return fallbackResult;
+    }
+    throw error;
+  }
+}
+
 function createSafeAuth(client) {
   if (wrappedAuth) return wrappedAuth;
 
   wrappedAuth = new Proxy(client.auth, {
     get(target, prop) {
       if (prop === "getSession") {
-        return async (...args) => {
-          try {
-            return await target.getSession(...args);
-          } catch (error) {
-            if (isInvalidRefreshTokenError(error)) {
-              await target.signOut({ scope: "local" }).catch(() => {});
-              return { data: { session: null }, error: null };
-            }
-            throw error;
-          }
-        };
+        return (...args) =>
+          safeAuthCall(target, "getSession", args, { data: { session: null }, error: null });
       }
 
       if (prop === "getUser") {
-        return async (...args) => {
-          try {
-            return await target.getUser(...args);
-          } catch (error) {
-            if (isInvalidRefreshTokenError(error)) {
-              await target.signOut({ scope: "local" }).catch(() => {});
-              return { data: { user: null }, error: null };
-            }
-            throw error;
-          }
-        };
+        return (...args) =>
+          safeAuthCall(target, "getUser", args, { data: { user: null }, error: null });
+      }
+
+      if (prop === "refreshSession") {
+        return (...args) =>
+          safeAuthCall(target, "refreshSession", args, {
+            data: { session: null, user: null },
+            error: null,
+          });
       }
 
       const value = target[prop];
@@ -50,6 +88,18 @@ function createSafeAuth(client) {
   });
 
   return wrappedAuth;
+}
+
+function sanitizeInitialSession(client) {
+  client.auth.getSession().then(async ({ error }) => {
+    if (isInvalidRefreshTokenError(error)) {
+      await handleInvalidRefreshToken(client.auth);
+    }
+  }).catch(async (error) => {
+    if (isInvalidRefreshTokenError(error)) {
+      await handleInvalidRefreshToken(client.auth);
+    }
+  });
 }
 
 export function getSupabaseBrowserClient() {
@@ -62,6 +112,7 @@ export function getSupabaseBrowserClient() {
   if (!url || !anonKey) return null;
 
   browserClient = createBrowserClient(url, anonKey);
+  sanitizeInitialSession(browserClient);
   return browserClient;
 }
 

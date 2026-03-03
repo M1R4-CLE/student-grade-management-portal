@@ -38,6 +38,8 @@ export default function StudentDashboardPage() {
   const [grades, setGrades] = useState([]);         // grade rows from Supabase
   const [query, setQuery] = useState("");
   const [idx, setIdx] = useState(0);
+  const [gradeIdx, setGradeIdx] = useState(0);
+  const [isMobile, setIsMobile] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showLogout, setShowLogout] = useState(false);
   const [brokenCoverKeys, setBrokenCoverKeys] = useState({});
@@ -160,12 +162,34 @@ export default function StudentDashboardPage() {
   // ── Auto-rotate featured carousel every 5 s ───────────────────────────────
   useEffect(() => {
     if (courses.length < 2) return;
-    const t = setInterval(() => setIdx((p) => (p + 1) % Math.min(courses.length, 3)), 5000);
+    const t = setInterval(() => setIdx((p) => (p + 1) % courses.length), 5000);
     return () => clearInterval(t);
   }, [courses.length]);
 
-  const featured = courses.slice(0, 3);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 700px)");
+    const update = () => setIsMobile(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, []);
+
+  const featured = courses;
   const item = featured[idx] || null;
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (!featured.length) {
+        setIdx(0);
+        return;
+      }
+      if (idx >= featured.length) {
+        setIdx(0);
+      }
+    }, 0);
+    return () => clearTimeout(t);
+  }, [idx, featured.length]);
 
   const prev = () => setIdx((p) => (p - 1 + featured.length) % featured.length);
   const next = () => setIdx((p) => (p + 1) % featured.length);
@@ -183,6 +207,49 @@ export default function StudentDashboardPage() {
       c.title.toLowerCase().includes(q) || c.code.toLowerCase().includes(q)
     );
   }, [query, courses]);
+
+  const gradeChips = useMemo(() => {
+    const gradeByCourseId = new Map((grades || []).map((g) => [String(g?.course_id || ""), g]));
+    return (courses || [])
+      .map((c) => {
+        const g = gradeByCourseId.get(String(c?.id || "")) || {};
+        const code = c?.code || g?.courses?.code || "";
+        const title = c?.title || g?.courses?.title || "";
+        if (!code && !title) return null;
+        return {
+          course_id: c?.id,
+          code,
+          title,
+          prelim: g?.prelim ?? null,
+          midterm: g?.midterm ?? null,
+          final_exam: g?.final_exam ?? null,
+          final_grade: g?.final_grade ?? null,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => String(a.code).localeCompare(String(b.code)));
+  }, [courses, grades]);
+
+  const chipsPerView = isMobile ? 2 : 3;
+  const gradeStep = isMobile ? 2 : 1;
+  const visibleGradeChips = gradeChips.slice(gradeIdx, gradeIdx + chipsPerView);
+  const maxGradeIdx = isMobile
+    ? Math.max(0, Math.floor((gradeChips.length - 1) / chipsPerView) * chipsPerView)
+    : Math.max(0, gradeChips.length - chipsPerView);
+
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setGradeIdx((prev) => {
+        if (!isMobile) return Math.min(prev, maxGradeIdx);
+        const snapped = Math.floor(Math.max(0, prev) / gradeStep) * gradeStep;
+        return Math.min(snapped, maxGradeIdx);
+      });
+    }, 0);
+    return () => clearTimeout(t);
+  }, [isMobile, gradeStep, maxGradeIdx]);
+
+  const prevGrade = () => setGradeIdx((p) => Math.max(0, p - gradeStep));
+  const nextGrade = () => setGradeIdx((p) => Math.min(maxGradeIdx, p + gradeStep));
 
   // ── Overall grade average ─────────────────────────────────────────────────
   const overallGrade = useMemo(() => {
@@ -245,8 +312,12 @@ export default function StudentDashboardPage() {
           </div>
 
           {/* Per-course grade chips */}
-          <div className="dashboard-grades-wrap" style={{ display: "flex", gap: 10, flexWrap: "wrap", flex: 1 }}>
-            {grades.map((g, i) => (
+          <div
+            key={`grade-page-${gradeIdx}-${chipsPerView}`}
+            className="dashboard-grades-wrap dashboard-grades-enter"
+            style={{ display: "flex", gap: 10, flexWrap: "nowrap", flex: 1 }}
+          >
+            {visibleGradeChips.map((g, i) => (
               <div
                 key={i}
                 className="dashboard-grade-chip"
@@ -259,7 +330,7 @@ export default function StudentDashboardPage() {
                 }}
               >
                 <div className="dashboard-grade-code" style={{ fontSize: 11, fontWeight: 800, color: "#2f6fb3" }}>
-                  {g.courses?.code || "N/A"}
+                  {g.code}
                 </div>
                 <div
                   className="dashboard-grade-title"
@@ -273,7 +344,7 @@ export default function StudentDashboardPage() {
                     minHeight: 26,
                   }}
                 >
-                  {g.courses?.title || "Course"}
+                  {g.title}
                 </div>
                 <div className="dashboard-grade-metrics" style={{ display: "flex", gap: 6, fontSize: 11 }}>
                   <span>P: <b>{fmtPct(g.prelim)}</b></span>
@@ -295,6 +366,43 @@ export default function StudentDashboardPage() {
               </div>
             ))}
           </div>
+
+          {gradeChips.length > chipsPerView && (
+            <div style={{ display: "flex", gap: 6, alignSelf: "center" }}>
+              <button
+                onClick={prevGrade}
+                disabled={gradeIdx <= 0}
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 999,
+                  border: "1px solid rgba(0,0,0,.15)",
+                  background: "white",
+                  cursor: "pointer",
+                  opacity: gradeIdx <= 0 ? 0.5 : 1,
+                }}
+                aria-label="Previous grades"
+              >
+                ‹
+              </button>
+              <button
+                onClick={nextGrade}
+                disabled={gradeIdx >= maxGradeIdx}
+                style={{
+                  width: 30,
+                  height: 30,
+                  borderRadius: 999,
+                  border: "1px solid rgba(0,0,0,.15)",
+                  background: "white",
+                  cursor: "pointer",
+                  opacity: gradeIdx >= maxGradeIdx ? 0.5 : 1,
+                }}
+                aria-label="Next grades"
+              >
+                ›
+              </button>
+            </div>
+          )}
 
           <button
             className="dashboard-view-grades"
@@ -371,10 +479,6 @@ export default function StudentDashboardPage() {
               </div>
             </div>
 
-            {/* Right image (next course preview) */}
-            <div className="featuredImg">
-              {renderCourseCover(featured[(idx + 1) % featured.length] || item, "next", "feature", "lazy")}
-            </div>
           </div>
 
           {/* Dots */}
@@ -477,6 +581,21 @@ export default function StudentDashboardPage() {
           gap: 6px;
         }
 
+        .dashboard-grades-enter {
+          animation: gradeSlideIn 240ms ease;
+        }
+
+        @keyframes gradeSlideIn {
+          from {
+            opacity: 0.2;
+            transform: translateX(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+
         @media (max-width: 700px) {
           .dashboard-summary {
             display: flex !important;
@@ -515,9 +634,8 @@ export default function StudentDashboardPage() {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 10px !important;
             width: 100%;
-            max-height: min(52vh, 460px);
-            overflow-y: auto;
-            overflow-x: hidden;
+            max-height: none;
+            overflow: visible;
             padding: 0 6px;
             box-sizing: border-box;
             align-items: stretch;
@@ -660,4 +778,3 @@ export default function StudentDashboardPage() {
     </>
   );
 }
-

@@ -24,6 +24,15 @@ function computeFinal(prelim, midterm, finalExam) {
   return +(p * 0.3 + m * 0.3 + f * 0.4).toFixed(2);
 }
 
+function normalizeUnsetTerm(v) {
+  const n = normalizePct(v);
+  if (n == null) return null;
+  // In this app, term columns default to 0 in DB before teacher encodes values.
+  // Treat 0 as "not encoded yet" for display.
+  if (n === 0) return null;
+  return v;
+}
+
 function gradeColor(val) {
   const g = normalizePct(val);
   if (g == null) return "#9ca3af";
@@ -37,6 +46,98 @@ function gradeRemark(val) {
   if (g >= 80) return "Very Good";
   if (g >= 75) return "Passed";
   return "Failed";
+}
+
+function parseLogScorePct(type, status, score) {
+  if (type === "Attendance") {
+    const s = String(status || "").toLowerCase();
+    if (s === "present") return 100;
+    if (s === "late") return 50;
+    if (s === "absent") return 0;
+    return null; // Exempted/Excused/blank = not counted
+  }
+
+  const raw = String(score || "").trim();
+  if (!raw) return null;
+  if (raw.includes("/")) {
+    const [a, b] = raw.split("/");
+    const n = Number(a);
+    const d = Number(b);
+    if (!Number.isFinite(n) || !Number.isFinite(d) || d <= 0) return null;
+    return +((n / d) * 100).toFixed(2);
+  }
+  if (raw.endsWith("%")) {
+    const n = Number(raw.replace("%", "").trim());
+    return Number.isFinite(n) ? +n.toFixed(2) : null;
+  }
+  const n = Number(raw);
+  return Number.isFinite(n) ? +n.toFixed(2) : null;
+}
+
+function parseTermFromNote(note) {
+  const txt = String(note || "").toLowerCase();
+  if (txt.includes("midterm")) return "Midterm";
+  if (txt.includes("final")) return "Final";
+  return "Prelim";
+}
+
+function groupActivitiesByCourse(perfRows) {
+  const courseMap = new Map();
+
+  for (const row of perfRows || []) {
+    const courseId = row.course_id;
+    if (!courseMap.has(courseId)) courseMap.set(courseId, new Map());
+    const byActivity = courseMap.get(courseId);
+    const termLabel = parseTermFromNote(row.note);
+    const key = `${row.event_date || ""}|${row.item || ""}|${termLabel}`;
+
+    if (!byActivity.has(key)) {
+      byActivity.set(key, {
+        date: row.event_date || "",
+        item: row.item || "Activity",
+        term: termLabel,
+        scores: { Attendance: null, Quiz: null, Activity: null, Exam: null },
+      });
+    }
+
+    const entry = byActivity.get(key);
+    const pct = parseLogScorePct(row.type, row.status, row.score);
+    if (Object.prototype.hasOwnProperty.call(entry.scores, row.type)) {
+      entry.scores[row.type] = pct;
+    }
+  }
+
+  const out = new Map();
+  for (const [courseId, activityMap] of courseMap.entries()) {
+    const list = Array.from(activityMap.values())
+      .map((x) => {
+        const vals = Object.values(x.scores).filter((v) => v != null);
+        const avg = vals.length ? +(vals.reduce((s, n) => s + n, 0) / vals.length).toFixed(2) : null;
+        return { ...x, average: avg };
+      })
+      .sort((a, b) => String(b.date).localeCompare(String(a.date)));
+    out.set(courseId, list);
+  }
+  return out;
+}
+
+function buildCourseTermPresence(perfRows) {
+  const out = new Map();
+  for (const row of perfRows || []) {
+    const courseId = row.course_id;
+    if (!courseId) continue;
+    if (!out.has(courseId)) {
+      out.set(courseId, { prelim: false, midterm: false, final: false });
+    }
+    const pct = parseLogScorePct(row.type, row.status, row.score);
+    if (pct == null) continue;
+    const termLabel = parseTermFromNote(row.note);
+    const rec = out.get(courseId);
+    if (termLabel === "Prelim") rec.prelim = true;
+    if (termLabel === "Midterm") rec.midterm = true;
+    if (termLabel === "Final") rec.final = true;
+  }
+  return out;
 }
 
 export default function StudentGradesPage() {
@@ -92,13 +193,23 @@ export default function StudentGradesPage() {
         return;
       }
 
-      const [{ data: courseRows, error: coursesErr }, { data: gradeRows, error: gradesErr }] = await Promise.all([
+      const [
+        { data: courseRows, error: coursesErr },
+        { data: gradeRows, error: gradesErr },
+        { data: perfRows, error: perfErr },
+      ] = await Promise.all([
         supabase.from("courses").select("id, code, title, teacher_id").in("id", courseIds),
         supabase
           .from("grades")
           .select("course_id, prelim, midterm, final_exam, final_grade")
           .eq("student_id", user.id)
           .in("course_id", courseIds),
+        supabase
+          .from("student_performance_logs")
+          .select("course_id, event_date, item, type, status, score, note")
+          .eq("student_id", user.id)
+          .in("course_id", courseIds)
+          .order("event_date", { ascending: false }),
       ]);
 
       if (coursesErr) {
@@ -115,6 +226,15 @@ export default function StudentGradesPage() {
         return;
       }
 
+      let safePerfRows = perfRows || [];
+      if (perfErr) {
+        const msg = String(perfErr.message || "").toLowerCase();
+        if (!msg.includes("does not exist")) {
+          setErr(perfErr.message);
+        }
+        safePerfRows = [];
+      }
+
       const teacherIds = Array.from(new Set((courseRows || []).map((c) => c.teacher_id).filter(Boolean)));
       const { data: teacherRows } = teacherIds.length
         ? await supabase.from("profiles").select("id, full_name").in("id", teacherIds)
@@ -123,26 +243,33 @@ export default function StudentGradesPage() {
       const courseMap = new Map((courseRows || []).map((c) => [c.id, c]));
       const gradeMap = new Map((gradeRows || []).map((g) => [g.course_id, g]));
       const teacherMap = new Map((teacherRows || []).map((t) => [t.id, t.full_name || "N/A"]));
+      const activityMap = groupActivitiesByCourse(safePerfRows);
+      const termPresenceMap = buildCourseTermPresence(safePerfRows);
 
       const merged = courseIds
         .map((cid) => {
           const c = courseMap.get(cid);
           const g = gradeMap.get(cid);
-          const hasComponents = g?.prelim != null || g?.midterm != null || g?.final_exam != null;
+          const termPresence = termPresenceMap.get(cid) || { prelim: false, midterm: false, final: false };
+          const prelimVal = termPresence.prelim && g?.prelim != null ? g.prelim : null;
+          const midtermVal = termPresence.midterm ? normalizeUnsetTerm(g?.midterm) : null;
+          const finalExamVal = termPresence.final ? normalizeUnsetTerm(g?.final_exam) : null;
+          const hasComponents = prelimVal != null || midtermVal != null || finalExamVal != null;
           const final =
             g?.final_grade != null
               ? normalizePct(g.final_grade)
               : hasComponents
-              ? computeFinal(g?.prelim, g?.midterm, g?.final_exam)
+              ? computeFinal(prelimVal, midtermVal, finalExamVal)
               : null;
           return {
             code: c?.code || "N/A",
             name: c?.title || "N/A",
             instructor: teacherMap.get(c?.teacher_id) || "N/A",
-            prelim: g?.prelim != null ? g.prelim : null,
-            midterm: g?.midterm != null ? g.midterm : null,
-            final_exam: g?.final_exam != null ? g.final_exam : null,
+            prelim: prelimVal,
+            midterm: midtermVal,
+            final_exam: finalExamVal,
             final,
+            activities: activityMap.get(cid) || [],
           };
         })
         .sort((a, b) => String(a.code).localeCompare(String(b.code)));
@@ -160,6 +287,7 @@ export default function StudentGradesPage() {
     gradesWith.length > 0
       ? (gradesWith.reduce((s, g) => s + Number(g.final), 0) / gradesWith.length).toFixed(2)
       : null;
+  const hasAnyActivities = grades.some((g) => (g.activities || []).length > 0);
 
   if (loading) return <div style={{ padding: 24 }}>Loading grades...</div>;
 
@@ -324,6 +452,39 @@ export default function StudentGradesPage() {
 
           <div style={{ marginTop: 12, fontSize: 11, color: "#9ca3af" }}>
             Final Grade = (Prelim x 0.30) + (Midterm x 0.30) + (Final Exam x 0.40). Computed automatically by the system.
+          </div>
+        </div>
+      )}
+
+      {hasAnyActivities && (
+        <div className="glassCard" style={{ marginTop: 12, padding: 14 }}>
+          <div style={{ fontWeight: 900, marginBottom: 8, color: "#111827" }}>Activity Details</div>
+          <div style={{ display: "grid", gap: 8 }}>
+            {grades.map((g, i) => {
+              const list = g.activities || [];
+              if (!list.length) return null;
+              return (
+                <div key={`act-${i}`} style={{ border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, padding: 10, background: "#fff" }}>
+                  <div style={{ fontWeight: 800, color: "var(--blue-main)", marginBottom: 6 }}>
+                    {g.code} - {g.name}
+                  </div>
+                  <div style={{ display: "grid", gap: 4 }}>
+                    {list.slice(0, 8).map((a, idx) => (
+                      <div key={idx} style={{ fontSize: 12, color: "#374151", display: "flex", flexWrap: "wrap", gap: 10 }}>
+                        <span>{a.date}</span>
+                        <span style={{ fontWeight: 800 }}>{a.term}</span>
+                        <span>{a.item}</span>
+                        <span>A: {fmtPct(a.scores.Attendance)}</span>
+                        <span>Q: {fmtPct(a.scores.Quiz)}</span>
+                        <span>Act: {fmtPct(a.scores.Activity)}</span>
+                        <span>Ex: {fmtPct(a.scores.Exam)}</span>
+                        <span style={{ fontWeight: 800, color: gradeColor(a.average) }}>Avg: {fmtPct(a.average)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
