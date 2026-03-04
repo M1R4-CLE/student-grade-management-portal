@@ -9,11 +9,18 @@ const TERM_OPTIONS = [
   { value: "midterm", label: "Midterm" },
   { value: "final_exam", label: "Final" },
 ];
+const DEFAULT_TERM = TERM_OPTIONS[0].value;
+const DEFAULT_MAX_SCORE = 100;
 const TERM_WEIGHTS = {
   Attendance: 0.2,
   Quiz: 0.2,
   Activity: 0.3,
   Exam: 0.4,
+};
+const FINAL_GRADE_WEIGHTS = {
+  prelim: 0.3,
+  midterm: 0.3,
+  final_exam: 0.4,
 };
 const TERM_WEIGHT_TOTAL = Object.values(TERM_WEIGHTS).reduce((s, w) => s + w, 0);
 const ATTENDANCE_STATUS_OPTIONS = ["Present", "Late", "Absent", "Exempted", "Excused"];
@@ -25,6 +32,17 @@ const ATTENDANCE_STATUS_POINTS = {
   Excused: null,
 };
 const ADDABLE_SCORE_TYPES = ["Quiz", "Activity", "Exam"];
+const TERM_FILTER_OPTIONS = [{ value: "all", label: "All" }, ...TERM_OPTIONS];
+const TERM_WEIGHTS_HINT = `Term Weights: Attendance ${Math.round(
+  TERM_WEIGHTS.Attendance * 100
+)}%, Quiz ${Math.round(TERM_WEIGHTS.Quiz * 100)}%, Activities/Projects ${Math.round(
+  TERM_WEIGHTS.Activity * 100
+)}%, Exam ${Math.round(TERM_WEIGHTS.Exam * 100)}%.`;
+const TERM_FORMULA_HINT = `Formula: Attendance ${Math.round(
+  TERM_WEIGHTS.Attendance * 100
+)}% + Quiz ${Math.round(TERM_WEIGHTS.Quiz * 100)}% + Activity ${Math.round(
+  TERM_WEIGHTS.Activity * 100
+)}% + Exam ${Math.round(TERM_WEIGHTS.Exam * 100)}% (per selected term).`;
 
 function normalizePct(v) {
   const n = Number(v);
@@ -33,11 +51,20 @@ function normalizePct(v) {
   return n;
 }
 
+function clampPercent(n) {
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, n));
+}
+
 function computeFinal(prelim, midterm, finalExam) {
   const p = normalizePct(prelim);
   const m = normalizePct(midterm);
   const f = normalizePct(finalExam);
-  return +(p * 0.3 + m * 0.3 + f * 0.4).toFixed(2);
+  return +(
+    p * FINAL_GRADE_WEIGHTS.prelim +
+    m * FINAL_GRADE_WEIGHTS.midterm +
+    f * FINAL_GRADE_WEIGHTS.final_exam
+  ).toFixed(2);
 }
 
 function todayInputDate() {
@@ -51,9 +78,9 @@ function buildActivity(partial = {}) {
     id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     item: partial.item || "Attendance",
     date: partial.date || todayInputDate(),
-    term: partial.term || "prelim",
+    term: partial.term || DEFAULT_TERM,
     type: partial.type || "Attendance",
-    maxScore: partial.maxScore || "100",
+    maxScore: partial.maxScore || String(DEFAULT_MAX_SCORE),
   };
 }
 
@@ -65,19 +92,20 @@ function parseRawScore(scoreText) {
   return String(n);
 }
 
-function parseMaxScore(scoreText) {
-  if (!scoreText) return "100";
-  const parts = String(scoreText).split("/");
+function parseScoreDenominator(scoreText) {
+  const s = String(scoreText || "").trim();
+  if (!s || !s.includes("/")) return null;
+  const parts = s.split("/");
   const max = Number(parts[1]);
-  if (!Number.isFinite(max) || max <= 0) return "100";
-  return String(max);
+  if (!Number.isFinite(max) || max <= 0) return null;
+  return max;
 }
 
 function parseTermFromNote(noteText) {
   const txt = String(noteText || "").toLowerCase();
   if (txt.includes("midterm")) return "midterm";
   if (txt.includes("final")) return "final_exam";
-  return "prelim";
+  return DEFAULT_TERM;
 }
 
 function parseScoreToPct(scoreText) {
@@ -89,18 +117,18 @@ function parseScoreToPct(scoreText) {
     const raw = Number(rawText);
     const max = Number(maxText);
     if (!Number.isFinite(raw) || !Number.isFinite(max) || max <= 0) return null;
-    return +((raw / max) * 100).toFixed(2);
+    return +clampPercent((raw / max) * 100).toFixed(2);
   }
 
   if (s.endsWith("%")) {
     const n = Number(s.replace("%", "").trim());
     if (!Number.isFinite(n)) return null;
-    return +n.toFixed(2);
+    return +clampPercent(n).toFixed(2);
   }
 
   const n = Number(s);
   if (!Number.isFinite(n)) return null;
-  return +n.toFixed(2);
+  return +clampPercent(n).toFixed(2);
 }
 
 function hasAnyScoreValue(scores) {
@@ -139,7 +167,7 @@ function getScoreColors(rawText, max) {
   if (!Number.isFinite(raw) || !Number.isFinite(max) || max <= 0) {
     return { background: "#ffffff", color: "#111827", border: "#d1d5db" };
   }
-  const pct = (raw / max) * 100;
+  const pct = clampPercent((raw / max) * 100);
   if (pct >= 90) return { background: "#16a34a", color: "#ffffff", border: "#15803d" }; // highest
   if (pct >= 85) return { background: "#bbf7d0", color: "#14532d", border: "#86efac" }; // lower-highest
   if (pct >= 75) return { background: "#fef08a", color: "#854d0e", border: "#fde047" }; // passing
@@ -181,27 +209,35 @@ export default function TeacherGradeEntryPage() {
   const [showBuilder, setShowBuilder] = useState(false);
   const [showComputePanel, setShowComputePanel] = useState(false);
   const [computeCourseId, setComputeCourseId] = useState("");
-  const [computeTerm, setComputeTerm] = useState("prelim");
+  const [computeTerm, setComputeTerm] = useState(DEFAULT_TERM);
   const [computeRows, setComputeRows] = useState([]);
   const [computeLoading, setComputeLoading] = useState(false);
   const [computeErr, setComputeErr] = useState("");
   const [folderSearch, setFolderSearch] = useState("");
+  const [folderTermFilter, setFolderTermFilter] = useState("all");
   const [showAddColumnMenu, setShowAddColumnMenu] = useState(false);
   const [scoreColumns, setScoreColumns] = useState([
     { id: "attendance-col", type: "Attendance", required: true },
   ]);
   const [activityColumnTypes, setActivityColumnTypes] = useState({});
+  const activityColumnTypesRef = useRef(activityColumnTypes);
   const nextColIdRef = useRef(1);
+  const courseRosterCacheRef = useRef(new Map());
+  const perfActivityCacheRef = useRef(new Map());
   const [activities, setActivities] = useState([]);
   const [activeActivityId, setActiveActivityId] = useState("");
   const [activityForm, setActivityForm] = useState({
     item: "",
     date: todayInputDate(),
-    term: "prelim",
+    term: DEFAULT_TERM,
     type: "Attendance",
     maxScore: "",
   });
   const activeActivity = activities.find((a) => a.id === activeActivityId) || activities[0] || null;
+
+  useEffect(() => {
+    activityColumnTypesRef.current = activityColumnTypes;
+  }, [activityColumnTypes]);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 700px)");
@@ -262,59 +298,80 @@ export default function TeacherGradeEntryPage() {
       return;
     }
     setErr("");
-    const termKey = activity?.term || "prelim";
     const activityItem = String(activity?.item || activity?.type || "").trim();
     const activityDate = activity?.date || todayInputDate();
+    const courseKey = String(courseId);
+    let students = [];
+    let gradeMap = {};
+    let studentIds = [];
 
-    const { data: enrollData, error: eErr } = await supabase
-      .from("enrollments")
-      .select("student_id")
-      .eq("course_id", courseId)
-      .order("student_id");
-    if (eErr) {
-      setErr(eErr.message);
-      setRows([]);
-      return;
+    const cachedCourse = courseRosterCacheRef.current.get(courseKey);
+    if (cachedCourse) {
+      students = cachedCourse.students;
+      gradeMap = cachedCourse.gradeMap;
+      studentIds = cachedCourse.studentIds;
+    } else {
+      const [{ data: enrollData, error: eErr }, { data: gradesData, error: gErr }] = await Promise.all([
+        supabase.from("enrollments").select("student_id").eq("course_id", courseId).order("student_id"),
+        supabase.from("grades").select("student_id, prelim, midterm, final_exam").eq("course_id", courseId),
+      ]);
+
+      if (eErr) {
+        setErr(eErr.message);
+        setRows([]);
+        return;
+      }
+      if (gErr) {
+        setErr(gErr.message);
+        setRows([]);
+        return;
+      }
+
+      studentIds = [...new Set((enrollData || []).map((e) => e.student_id).filter(Boolean))];
+      const { data: profileRows, error: pErr } = studentIds.length
+        ? await supabase.from("profiles").select("id, full_name, student_no").in("id", studentIds)
+        : { data: [], error: null };
+      if (pErr) {
+        setErr(pErr.message);
+        setRows([]);
+        return;
+      }
+      const profileMap = new Map((profileRows || []).map((p) => [p.id, p]));
+      students = (enrollData || []).map((e) => {
+        const p = profileMap.get(e.student_id);
+        return {
+          studentId: e.student_id,
+          name: p?.full_name || "-",
+          studentNo: p?.student_no || "-",
+        };
+      });
+      gradeMap = {};
+      (gradesData || []).forEach((g) => {
+        gradeMap[g.student_id] = g;
+      });
+      courseRosterCacheRef.current.set(courseKey, { students, gradeMap, studentIds });
     }
-
-    const studentIds = [...new Set((enrollData || []).map((e) => e.student_id).filter(Boolean))];
-    const { data: profileRows, error: pErr } = studentIds.length
-      ? await supabase.from("profiles").select("id, full_name, student_no").in("id", studentIds)
-      : { data: [], error: null };
-    if (pErr) {
-      setErr(pErr.message);
-      setRows([]);
-      return;
-    }
-    const profileMap = new Map((profileRows || []).map((p) => [p.id, p]));
-
-    const students = (enrollData || []).map((e) => {
-      const p = profileMap.get(e.student_id);
-      return {
-        studentId: e.student_id,
-        name: p?.full_name || "-",
-        studentNo: p?.student_no || "-",
-      };
-    });
-
-    const { data: gradesData } = await supabase
-      .from("grades")
-      .select("student_id, prelim, midterm, final_exam")
-      .eq("course_id", courseId);
-    const gradeMap = {};
-    (gradesData || []).forEach((g) => {
-      gradeMap[g.student_id] = g;
-    });
 
     let perfMap = {};
     if (logsEnabled && studentIds.length && activityItem) {
-      const { data: perfRows, error: perfErr } = await supabase
-        .from("student_performance_logs")
-        .select("student_id, type, score, status")
-        .eq("course_id", courseId)
-        .eq("event_date", activityDate)
-        .eq("item", activityItem)
-        .in("student_id", studentIds);
+      const perfKey = `${courseKey}|${activityDate}|${activityItem}`;
+      let perfRows = perfActivityCacheRef.current.get(perfKey);
+      let perfErr = null;
+
+      if (!perfRows) {
+        const perfRes = await supabase
+          .from("student_performance_logs")
+          .select("student_id, type, score, status")
+          .eq("course_id", courseId)
+          .eq("event_date", activityDate)
+          .eq("item", activityItem)
+          .in("student_id", studentIds);
+        perfRows = perfRes.data || [];
+        perfErr = perfRes.error || null;
+        if (!perfErr) {
+          perfActivityCacheRef.current.set(perfKey, perfRows);
+        }
+      }
 
       if (perfErr) {
         const msg = String(perfErr.message || "").toLowerCase();
@@ -324,7 +381,7 @@ export default function TeacherGradeEntryPage() {
       } else {
         const dbTypes = Array.from(new Set((perfRows || []).map((x) => x.type).filter(Boolean)));
         const key = getActivityKey(activity);
-        const localTypes = activityColumnTypes[key];
+        const localTypes = activityColumnTypesRef.current[key];
         const chosenTypes = Array.isArray(localTypes) && localTypes.length
           ? localTypes
           : dbTypes.length
@@ -373,7 +430,7 @@ export default function TeacherGradeEntryPage() {
         return acc;
       }, {})
     );
-  }, [activityColumnTypes]);
+  }, []);
 
   const fetchActivityFolders = useCallback(async (courseId) => {
     if (!courseId || !supportsPerformanceLogs) return [];
@@ -393,60 +450,67 @@ export default function TeacherGradeEntryPage() {
       return [];
     }
 
-    const seen = new Set();
-    const folders = [];
+    const folderMap = new Map();
     for (const row of data || []) {
       const key = `${row.event_date}|${row.item}`;
-      if (seen.has(key)) continue;
-      seen.add(key);
-      folders.push(
-        buildActivity({
+      if (!folderMap.has(key)) {
+        folderMap.set(key, {
           date: row.event_date || todayInputDate(),
           type: row.type || "Attendance",
           item: row.item || row.type || "Activity",
           term: parseTermFromNote(row.note),
-          maxScore: parseMaxScore(row.score),
-        })
-      );
+          maxScoreNum: null,
+        });
+      }
+
+      const rec = folderMap.get(key);
+      if (rec.type === "Attendance" && row.type && row.type !== "Attendance") {
+        rec.type = row.type;
+      }
+
+      const denom = row.type === "Attendance" ? null : parseScoreDenominator(row.score);
+      if (denom != null) {
+        rec.maxScoreNum = rec.maxScoreNum == null ? denom : Math.max(rec.maxScoreNum, denom);
+      }
     }
-    return folders;
+
+    return Array.from(folderMap.values()).map((x) =>
+      buildActivity({
+        date: x.date,
+        type: x.type,
+        item: x.item,
+        term: x.term,
+        maxScore: String(x.maxScoreNum ?? DEFAULT_MAX_SCORE),
+      })
+    );
   }, [supportsPerformanceLogs]);
 
-  const refreshSelectedCourseGrades = useCallback(() => {
-    loadGrades(selectedId, activeActivity, supportsPerformanceLogs);
-  }, [loadGrades, selectedId, activeActivity, supportsPerformanceLogs]);
-
   useEffect(() => {
-    const t = setTimeout(() => {
-      refreshSelectedCourseGrades();
-    }, 0);
-    return () => clearTimeout(t);
-  }, [refreshSelectedCourseGrades]);
+    const run = async () => {
+      if (!selectedId) {
+        setActivities([]);
+        setActiveActivityId("");
+        setRows([]);
+        setFolderTermFilter("all");
+        return;
+      }
+      setActivities([]);
+      setActiveActivityId("");
+      const folders = await fetchActivityFolders(selectedId);
+      if (!folders.length) {
+        setActivities([]);
+        setActiveActivityId("");
+        await loadGrades(selectedId, null, supportsPerformanceLogs);
+        return;
+      }
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      const run = async () => {
-        if (!selectedId) {
-          setActivities([]);
-          setActiveActivityId("");
-          return;
-        }
-        const folders = await fetchActivityFolders(selectedId);
-        if (!folders.length) {
-          setActivities([]);
-          setActiveActivityId("");
-          return;
-        }
-
-        setActivities(folders);
-        setActiveActivityId((prev) =>
-          prev && folders.some((f) => f.id === prev) ? prev : folders[0].id
-        );
-      };
-      run();
-    }, 0);
-    return () => clearTimeout(t);
-  }, [selectedId, fetchActivityFolders]);
+      setActivities(folders);
+      const nextActive = folders[0];
+      setActiveActivityId(nextActive.id);
+      await loadGrades(selectedId, nextActive, supportsPerformanceLogs);
+    };
+    run();
+  }, [selectedId, fetchActivityFolders, loadGrades, supportsPerformanceLogs]);
 
   useEffect(() => {
     const t = setTimeout(() => {
@@ -461,22 +525,6 @@ export default function TeacherGradeEntryPage() {
     }, 0);
     return () => clearTimeout(t);
   }, [activeActivityId, activeActivity, activityColumnTypes]);
-
-  useEffect(() => {
-    if (!activeActivityId) return;
-    const t = setTimeout(() => {
-      // Clear previous folder values immediately while loading the selected folder.
-      setRows((prev) =>
-        prev.map((r) => ({
-          ...r,
-          scores: { Attendance: "", Quiz: "", Activity: "", Exam: "" },
-        }))
-      );
-      setSaved({});
-      setLocked({});
-    }, 0);
-    return () => clearTimeout(t);
-  }, [activeActivityId]);
 
   const updateEntryScore = (studentId, type, value) => {
     if (locked[studentId]) return;
@@ -505,6 +553,7 @@ export default function TeacherGradeEntryPage() {
 
     const item = String(activeActivity.item || activeActivity.type).trim();
     const eventDate = activeActivity.date || todayInputDate();
+    const perfKey = `${String(selectedId)}|${eventDate}|${item}`;
     const statusValue = type === "Attendance" ? String(rawScoreText || "Present") : "Graded";
     const points = ATTENDANCE_STATUS_POINTS[statusValue];
     const score =
@@ -512,7 +561,7 @@ export default function TeacherGradeEntryPage() {
         ? points == null
           ? "EXEMPTED"
           : `${points}/1`
-        : `${rawScoreText || "0"}/${activeActivity.maxScore || "100"}`;
+        : `${rawScoreText || "0"}/${activeActivity.maxScore || String(DEFAULT_MAX_SCORE)}`;
 
     const { data: existing, error: findErr } = await supabase
       .from("student_performance_logs")
@@ -545,6 +594,7 @@ export default function TeacherGradeEntryPage() {
 
     if (existing?.[0]?.id) {
       await supabase.from("student_performance_logs").update(payload).eq("id", existing[0].id);
+      perfActivityCacheRef.current.delete(perfKey);
       return;
     }
 
@@ -552,6 +602,8 @@ export default function TeacherGradeEntryPage() {
     if (insertErr) {
       const msg = String(insertErr.message || "").toLowerCase();
       if (msg.includes("does not exist")) setSupportsPerformanceLogs(false);
+    } else {
+      perfActivityCacheRef.current.delete(perfKey);
     }
   };
 
@@ -654,7 +706,7 @@ export default function TeacherGradeEntryPage() {
     if (locked[row.studentId]) return;
     setErr("");
 
-    const maxScoreNum = Number(activeActivity?.maxScore || 100);
+    const maxScoreNum = Number(activeActivity?.maxScore || DEFAULT_MAX_SCORE);
     if (!Number.isFinite(maxScoreNum) || maxScoreNum <= 0) {
       setErr("Max score must be greater than 0.");
       return;
@@ -662,7 +714,7 @@ export default function TeacherGradeEntryPage() {
 
     setSaving((prev) => ({ ...prev, [row.studentId]: true }));
 
-    const termField = activeActivity?.term || "prelim";
+    const termField = activeActivity?.term || DEFAULT_TERM;
     let nextPrelim = normalizePct(row.prelim);
     let nextMidterm = normalizePct(row.midterm);
     let nextFinalExam = normalizePct(row.final_exam);
@@ -779,6 +831,18 @@ export default function TeacherGradeEntryPage() {
           : r
       )
     );
+    const courseKey = String(selectedId);
+    const cachedCourse = courseRosterCacheRef.current.get(courseKey);
+    if (cachedCourse) {
+      cachedCourse.gradeMap[row.studentId] = {
+        ...(cachedCourse.gradeMap[row.studentId] || {}),
+        student_id: row.studentId,
+        prelim: nextPrelim,
+        midterm: nextMidterm,
+        final_exam: nextFinalExam,
+      };
+      courseRosterCacheRef.current.set(courseKey, cachedCourse);
+    }
     setSaved((prev) => ({ ...prev, [row.studentId]: true }));
     setLocked((prev) => ({ ...prev, [row.studentId]: true }));
     setSaving((prev) => ({ ...prev, [row.studentId]: false }));
@@ -850,7 +914,7 @@ export default function TeacherGradeEntryPage() {
     setActivityForm({
       item: "",
       date: todayInputDate(),
-      term: "prelim",
+      term: DEFAULT_TERM,
       type: "Attendance",
       maxScore: "",
     });
@@ -878,17 +942,28 @@ export default function TeacherGradeEntryPage() {
     }
 
     const remaining = activities.filter((a) => a.id !== activeActivity.id);
+    const deletedPerfKey = `${String(selectedId)}|${activeActivity.date}|${activeActivity.item}`;
+    perfActivityCacheRef.current.delete(deletedPerfKey);
+    setActivityColumnTypes((prev) => {
+      const key = getActivityKey(activeActivity);
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+
     if (!remaining.length) {
       setActivities([]);
       setActiveActivityId("");
       setLocked({});
+      await loadGrades(selectedId, null, supportsPerformanceLogs);
     } else {
       setActivities(remaining);
       setActiveActivityId(remaining[0].id);
+      await loadGrades(selectedId, remaining[0], supportsPerformanceLogs);
     }
 
     await recomputeTermForAllStudents(selectedId, activeActivity.term);
-    await refreshSelectedCourseGrades();
   };
 
   const computeTermSummaryForCourse = useCallback(async (courseId, termKey) => {
@@ -1004,8 +1079,26 @@ export default function TeacherGradeEntryPage() {
 
   const openComputePanel = () => {
     setComputeCourseId((prev) => prev || selectedId || String(courses[0]?.id || ""));
-    setComputeTerm(activeActivity?.term || "prelim");
+    setComputeTerm(activeActivity?.term || DEFAULT_TERM);
     setShowComputePanel(true);
+  };
+  const handleFolderTermFilterChange = async (nextFilter) => {
+    setFolderTermFilter(nextFilter);
+    if (!selectedId) return;
+    const q = folderSearch.trim().toLowerCase();
+    const nextList = activities.filter((activity) => {
+      const termMatch = nextFilter === "all" || activity.term === nextFilter;
+      if (!termMatch) return false;
+      if (!q) return true;
+      const termLabel = TERM_OPTIONS.find((t) => t.value === activity.term)?.label || "";
+      const hay = `${activity.item} ${activity.date} ${termLabel}`.toLowerCase();
+      return hay.includes(q);
+    });
+    if (!nextList.length) return;
+    if (nextList.some((a) => a.id === activeActivityId)) return;
+    const next = nextList[0];
+    setActiveActivityId(next.id);
+    await loadGrades(selectedId, next, supportsPerformanceLogs);
   };
 
   if (loading) return <div style={{ padding: 40 }}>Loading Grade Entry...</div>;
@@ -1013,8 +1106,11 @@ export default function TeacherGradeEntryPage() {
   const activeTermLabel = TERM_OPTIONS.find((t) => t.value === activeActivity?.term)?.label || "Prelim";
   const filteredActivities = activities.filter((activity) => {
     const q = folderSearch.trim().toLowerCase();
+    const termMatch = folderTermFilter === "all" || activity.term === folderTermFilter;
+    if (!termMatch) return false;
     if (!q) return true;
-    const hay = `${activity.item} ${activity.date}`.toLowerCase();
+    const termLabel = TERM_OPTIONS.find((t) => t.value === activity.term)?.label || "";
+    const hay = `${activity.item} ${activity.date} ${termLabel}`.toLowerCase();
     return hay.includes(q);
   });
   const groupedByDate = filteredActivities.reduce((acc, activity) => {
@@ -1023,6 +1119,48 @@ export default function TeacherGradeEntryPage() {
     return acc;
   }, {});
   const orderedDates = Object.keys(groupedByDate).sort((a, b) => String(b).localeCompare(String(a)));
+  const visibleFolderCount = orderedDates.reduce((sum, d) => sum + (groupedByDate[d]?.length || 0), 0);
+  const folderBoardStyle = isMobile ? { ...folderBoard, padding: 10, borderRadius: 14 } : folderBoard;
+  const folderHeaderStyle = isMobile
+    ? { ...folderHeader, flexDirection: "column", alignItems: "stretch", gap: 8 }
+    : folderHeader;
+  const folderCountBadgeStyle = isMobile ? { ...folderCountBadge, alignSelf: "flex-start" } : folderCountBadge;
+  const folderTermTabsStyle = isMobile
+    ? {
+        ...folderTermTabs,
+        flexWrap: "nowrap",
+        overflowX: "auto",
+        paddingBottom: 2,
+        WebkitOverflowScrolling: "touch",
+      }
+    : folderTermTabs;
+  const folderTermBtnStyle = isMobile
+    ? { ...folderTermBtn, flex: "0 0 auto", minHeight: 32, padding: "0 14px", fontSize: 12 }
+    : folderTermBtn;
+  const searchWrapStyle = isMobile ? { ...searchWrap, width: "100%", minWidth: 0, boxSizing: "border-box" } : searchWrap;
+  const searchInputStyle = isMobile
+    ? { ...searchInput, width: "100%", maxWidth: "100%", minWidth: 0, boxSizing: "border-box" }
+    : searchInput;
+  const folderDateGroupStyle = isMobile ? { ...folderDateGroup, padding: 8, borderRadius: 10 } : folderDateGroup;
+  const folderWrapStyle = isMobile ? { ...folderWrap, gap: 8 } : folderWrap;
+  const folderButtonStyle = isMobile
+    ? { ...folderButton, width: "100%", minWidth: 0, maxWidth: "none", minHeight: 56, padding: "8px 10px" }
+    : folderButton;
+  const activityMetaRowStyle = isMobile
+    ? { ...activityMetaRow, flexDirection: "column", alignItems: "stretch", gap: 8 }
+    : activityMetaRow;
+  const activityMetaStyle = isMobile ? { ...activityMeta, width: "100%", boxSizing: "border-box" } : activityMeta;
+  const activityMetaMainStyle = isMobile
+    ? { ...activityMetaMain, flexDirection: "column", alignItems: "flex-start", gap: 6 }
+    : activityMetaMain;
+  const activityMetaDetailStyle = isMobile
+    ? { ...activityMetaDetail, display: "grid", gridTemplateColumns: "1fr", gap: 6, width: "100%" }
+    : activityMetaDetail;
+  const activityMetaDotStyle = isMobile ? { ...activityMetaDot, display: "none" } : activityMetaDot;
+  const deleteFolderBtnStyle = isMobile
+    ? { ...btnDanger, width: "100%", height: 38, borderRadius: 10, fontSize: 13 }
+    : btnDanger;
+  const tableWrapStyle = isMobile ? { ...tableWrap, padding: 10, borderRadius: 12 } : tableWrap;
 
   return (
     <div style={{ width: "100%" }}>
@@ -1043,7 +1181,7 @@ export default function TeacherGradeEntryPage() {
         >
           <select
             value={selectedId}
-            onChange={(e) => setSelectedId(e.target.value)}
+              onChange={(e) => setSelectedId(e.target.value)}
             style={{
               height: 42,
               padding: "0 14px",
@@ -1072,7 +1210,7 @@ export default function TeacherGradeEntryPage() {
                   setActivityForm({
                     item: "",
                     date: todayInputDate(),
-                    term: "prelim",
+                    term: DEFAULT_TERM,
                     type: "Attendance",
                     maxScore: "",
                   });
@@ -1102,15 +1240,43 @@ export default function TeacherGradeEntryPage() {
 
       </div>
 
-      <div style={folderBoard}>
-        <div style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: 13, fontWeight: 900, color: "#374151", marginBottom: 8 }}>Activity Folders</div>
-          <div style={searchWrap}>
+      <div style={folderBoardStyle}>
+        <div style={folderHeaderStyle}>
+          <div>
+            <div style={folderTitle}>Activity Folders</div>
+            <div style={folderSubtitle}>
+              Select a folder to load that activity. Use search to quickly find date, term, or name.
+            </div>
+          </div>
+          <div style={folderCountBadgeStyle}>{visibleFolderCount} folders</div>
+        </div>
+        <div style={folderTermTabsStyle}>
+          {TERM_FILTER_OPTIONS.map((opt) => {
+            const active = folderTermFilter === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => handleFolderTermFilterChange(opt.value)}
+                style={{
+                  ...folderTermBtnStyle,
+                  background: active ? "#1d4ed8" : "#ffffff",
+                  color: active ? "#ffffff" : "#334155",
+                  border: active ? "1px solid #1d4ed8" : "1px solid #cbd5e1",
+                }}
+              >
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ marginBottom: 4 }}>
+          <div style={searchWrapStyle}>
             <input
               value={folderSearch}
               onChange={(e) => setFolderSearch(e.target.value)}
-              placeholder="Search date or activity..."
-              style={searchInput}
+              placeholder="Filter by date, term, or activity..."
+              style={searchInputStyle}
             />
           </div>
         </div>
@@ -1118,24 +1284,32 @@ export default function TeacherGradeEntryPage() {
           <div style={{ fontSize: 12, color: "#6b7280" }}>No activity folders found.</div>
         ) : (
           orderedDates.map((dateKey) => (
-            <div key={dateKey} style={folderDateGroup}>
+            <div key={dateKey} style={folderDateGroupStyle}>
               <div style={folderDateLabel}>{dateKey}</div>
-              <div style={folderWrap}>
+              <div style={folderWrapStyle}>
                 {groupedByDate[dateKey].map((activity, idx) => {
                   const isActive = activity.id === activeActivityId;
+                  const termLabel = TERM_OPTIONS.find((t) => t.value === activity.term)?.label || "Term";
                   return (
                     <button
                       key={activity.id}
-                      onClick={() => setActiveActivityId(activity.id)}
-                      style={{
-                        ...folderButton,
-                        border: isActive ? "1px solid #2f6fb3" : "1px solid rgba(0,0,0,0.14)",
-                        background: isActive ? "#eff6ff" : "#ffffff",
-                        color: isActive ? "#1d4ed8" : "#374151",
+                      onClick={async () => {
+                        setActiveActivityId(activity.id);
+                        await loadGrades(selectedId, activity, supportsPerformanceLogs);
                       }}
-                      title={`${activity.type} | ${activity.item} | ${activity.date}`}
+                      style={{
+                        ...folderButtonStyle,
+                        border: isActive ? "1px solid #1d4ed8" : "1px solid #d1d5db",
+                        background: isActive ? "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)" : "#ffffff",
+                        color: isActive ? "#1e3a8a" : "#1f2937",
+                        boxShadow: isActive ? "0 6px 16px rgba(37, 99, 235, 0.18)" : "0 2px 6px rgba(0,0,0,0.06)",
+                      }}
+                      title={`${termLabel} | ${activity.item} | ${activity.date} | ${activity.maxScore} pts`}
                     >
-                      {activity.item} #{idx + 1}
+                      <span style={folderButtonMain}>{activity.item}</span>
+                      <span style={folderButtonMeta}>
+                        {termLabel} · {activity.maxScore} pts · #{idx + 1}
+                      </span>
                     </button>
                   );
                 })}
@@ -1192,14 +1366,42 @@ export default function TeacherGradeEntryPage() {
         </div>
       )}
 
-      <div style={activityMetaRow}>
-        <div style={activityMeta}>
+      <div style={activityMetaRowStyle}>
+        <div style={activityMetaStyle}>
           {activeActivity
-            ? (<>{activeTermLabel} | {activeActivity.item} | {activeActivity.date} | Points: {activeActivity.maxScore}</>)
+            ? (
+              <div style={activityMetaMainStyle}>
+                <div style={activityMetaTitle}>{activeActivity.item}</div>
+                {isMobile ? (
+                  <div style={activityMetaDetailStyle}>
+                    <div style={activityMetaLine}>
+                      <span style={activityMetaKey}>Term</span>
+                      <span style={activityMetaPill}>{activeTermLabel}</span>
+                    </div>
+                    <div style={activityMetaLine}>
+                      <span style={activityMetaKey}>Date</span>
+                      <span style={activityMetaValuePill}>{activeActivity.date}</span>
+                    </div>
+                    <div style={activityMetaLine}>
+                      <span style={activityMetaKey}>Points</span>
+                      <span style={activityMetaValuePill}>{activeActivity.maxScore} points</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={activityMetaDetailStyle}>
+                    <span style={activityMetaPill}>{activeTermLabel}</span>
+                    <span style={activityMetaDotStyle}>•</span>
+                    <span>{activeActivity.date}</span>
+                    <span style={activityMetaDotStyle}>•</span>
+                    <span>{activeActivity.maxScore} points</span>
+                  </div>
+                )}
+              </div>
+            )
             : (<>No activity folder selected yet.</>)}
         </div>
         {selectedId && activeActivity && (
-          <button onClick={deleteActiveActivity} style={btnDanger}>
+          <button onClick={deleteActiveActivity} style={deleteFolderBtnStyle}>
             Delete Folder
           </button>
         )}
@@ -1220,8 +1422,131 @@ export default function TeacherGradeEntryPage() {
       ) : rows.length === 0 ? (
         <div style={emptyBox}>No students enrolled in this course yet.</div>
       ) : (
-        <div style={tableWrap}>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+        <div style={tableWrapStyle}>
+          {isMobile ? (
+            <div style={mobileRowsWrap}>
+              {rows.map((row) => {
+                const status = String(row.scores?.Attendance || "");
+                const attendanceColors = getAttendanceColors(status);
+                const max = Number(activeActivity.maxScore || 0);
+                const pctValues = [];
+                const attendancePts = ATTENDANCE_STATUS_POINTS[status];
+                if (attendancePts != null) pctValues.push(+(attendancePts * 100).toFixed(2));
+                const extraCols = scoreColumns.filter((c) => c.type !== "Attendance");
+                let hasBlankExtra = false;
+                for (const col of extraCols) {
+                  const rawText = String(row.scores?.[col.type] ?? "").trim();
+                  if (!rawText) {
+                    hasBlankExtra = true;
+                    continue;
+                  }
+                  const raw = Number(row.scores?.[col.type] ?? "");
+                  if (Number.isFinite(raw) && max > 0) {
+                    pctValues.push(+clampPercent((raw / max) * 100).toFixed(2));
+                  }
+                }
+                const dayAvg = hasBlankExtra
+                  ? null
+                  : pctValues.length
+                  ? +(pctValues.reduce((s, n) => s + n, 0) / pctValues.length).toFixed(2)
+                  : null;
+                const isSaved = saved[row.studentId];
+                const isSaving = saving[row.studentId];
+                const isLocked = !!locked[row.studentId];
+
+                return (
+                  <div key={row.studentId} style={mobileRowCard}>
+                    <div style={mobileRowHead}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={mobileRowId}>{row.studentNo}</div>
+                        <div style={mobileRowName}>{row.name}</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={mobileAvgLabel}>Average</div>
+                        <div style={{ ...mobileAvgValue, color: dayAvg == null ? "#9ca3af" : dayAvg >= 75 ? "#16a34a" : "#dc2626" }}>
+                          {dayAvg == null ? "-" : `${dayAvg}%`}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={mobileFieldGrid}>
+                      <label style={mobileField}>
+                        <span style={mobileFieldLabel}>{activeTermLabel} Attendance</span>
+                        <select
+                          value={status}
+                          onChange={(e) => updateEntryScore(row.studentId, "Attendance", e.target.value)}
+                          disabled={isLocked}
+                          style={{
+                            ...scoreInput,
+                            width: "100%",
+                            background: attendanceColors.background,
+                            color: attendanceColors.color,
+                            border: `1px solid ${attendanceColors.border}`,
+                            fontWeight: 700,
+                            opacity: isLocked ? 0.8 : 1,
+                          }}
+                        >
+                          <option value="">Select</option>
+                          {ATTENDANCE_STATUS_OPTIONS.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </label>
+
+                      {extraCols.map((col) => {
+                        const rawText = String(row.scores?.[col.type] ?? "");
+                        const colors = getScoreColors(rawText, Number(activeActivity.maxScore) || 0);
+                        return (
+                          <label key={col.id} style={mobileField}>
+                            <span style={mobileFieldLabel}>{col.type}</span>
+                            <input
+                              type="number"
+                              min={0}
+                              step="any"
+                              max={Number(activeActivity.maxScore) || undefined}
+                              value={row.scores?.[col.type] ?? ""}
+                              onChange={(e) => updateEntryScore(row.studentId, col.type, e.target.value)}
+                              disabled={isLocked}
+                              style={{
+                                ...scoreInput,
+                                width: "100%",
+                                background: colors.background,
+                                color: colors.color,
+                                border: `1px solid ${colors.border}`,
+                                fontWeight: 700,
+                                opacity: isLocked ? 0.8 : 1,
+                              }}
+                            />
+                          </label>
+                        );
+                      })}
+                    </div>
+
+                    <div style={mobileActionRow}>
+                      {isLocked ? (
+                        <button onClick={() => editRow(row.studentId)} style={mobileEditBtn}>
+                          Edit
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => saveRow(row)}
+                          disabled={isSaving}
+                          style={{
+                            ...mobileSaveBtn,
+                            background: isSaved ? "#dcfce7" : "#2f6fb3",
+                            color: isSaved ? "#166534" : "white",
+                          }}
+                        >
+                          {isSaving ? "Saving..." : isSaved ? "Saved" : "Save"}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
   <thead>
     <tr style={{ background: "#f8fafc" }}>
       <th style={thCenter}>Student ID</th>
@@ -1276,7 +1601,9 @@ export default function TeacherGradeEntryPage() {
           continue;
         }
         const raw = Number(row.scores?.[col.type] ?? "");
-        if (Number.isFinite(raw) && max > 0) pctValues.push(+((raw / max) * 100).toFixed(2));
+        if (Number.isFinite(raw) && max > 0) {
+          pctValues.push(+clampPercent((raw / max) * 100).toFixed(2));
+        }
       }
       const dayAvg = hasBlankExtra
         ? null
@@ -1395,12 +1722,13 @@ export default function TeacherGradeEntryPage() {
     })}
   </tbody>
 </table>
+          )}
 
           <div style={{ marginTop: 10, fontSize: 11, color: "#9ca3af" }}>
             Average column shows the selected activity/day score converted to percent.
           </div>
           <div style={weightsHint}>
-            Term Weights: Attendance 20%, Quiz 20%, Activities/Projects 30%, Exam 40%.
+            {TERM_WEIGHTS_HINT}
             Attendance colors: Present=Green, Late=Yellow, Absent=Red, Exempted/Excused=Gray.
           </div>
         </div>
@@ -1497,7 +1825,7 @@ export default function TeacherGradeEntryPage() {
                   </tbody>
                 </table>
                 <div style={weightsHint}>
-                  Formula: Attendance 20% + Quiz 20% + Activity 30% + Exam 40% (per selected term).
+                  {TERM_FORMULA_HINT}
                 </div>
               </div>
             )}
@@ -1578,60 +1906,207 @@ const searchWrap = {
 };
 
 const searchInput = {
-  width: "min(100%, 360px)",
-  height: 34,
-  borderRadius: 10,
-  border: "1px solid rgba(0,0,0,0.15)",
+  width: "min(100%, 420px)",
+  height: 38,
+  borderRadius: 12,
+  border: "1px solid #cbd5e1",
   padding: "0 12px",
   fontSize: 13,
-  background: "white",
+  background: "#ffffff",
+  color: "#0f172a",
 };
 
 const folderBoard = {
-  background: "rgba(255,255,255,0.78)",
-  border: "1px solid rgba(0,0,0,0.08)",
-  borderRadius: 12,
-  padding: 10,
+  background: "linear-gradient(180deg, rgba(255,255,255,0.92) 0%, rgba(248,250,252,0.96) 100%)",
+  border: "1px solid rgba(15,23,42,0.08)",
+  borderRadius: 16,
+  padding: 14,
   marginBottom: 12,
 };
 
+const folderHeader = {
+  marginBottom: 10,
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 12,
+  flexWrap: "wrap",
+};
+
+const folderTitle = {
+  fontSize: 16,
+  fontWeight: 900,
+  color: "#0f172a",
+  marginBottom: 2,
+};
+
+const folderSubtitle = {
+  fontSize: 12,
+  color: "#64748b",
+  fontWeight: 600,
+};
+
+const folderCountBadge = {
+  minHeight: 28,
+  padding: "0 12px",
+  borderRadius: 999,
+  border: "1px solid #bfdbfe",
+  background: "#eff6ff",
+  color: "#1d4ed8",
+  fontSize: 12,
+  fontWeight: 800,
+  display: "inline-flex",
+  alignItems: "center",
+};
+
+const folderTermTabs = {
+  marginBottom: 10,
+  display: "flex",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
+const folderTermBtn = {
+  minHeight: 30,
+  padding: "0 12px",
+  borderRadius: 999,
+  fontSize: 12,
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
 const folderDateGroup = {
-  marginBottom: 8,
+  marginBottom: 10,
+  padding: "8px 10px",
+  borderRadius: 12,
+  border: "1px solid #e2e8f0",
+  background: "#ffffff",
 };
 
 const folderDateLabel = {
   fontSize: 12,
-  color: "#6b7280",
+  color: "#475569",
   fontWeight: 800,
-  marginBottom: 6,
+  marginBottom: 8,
+  letterSpacing: ".2px",
 };
 
 const folderWrap = {
   display: "flex",
-  gap: 8,
+  gap: 10,
   flexWrap: "wrap",
-  marginBottom: 4,
+  marginBottom: 2,
 };
 
 const folderButton = {
-  height: 34,
-  padding: "0 12px",
-  borderRadius: 9,
+  minHeight: 56,
+  padding: "8px 12px",
+  borderRadius: 12,
   fontSize: 12,
   fontWeight: 800,
   cursor: "pointer",
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "flex-start",
+  justifyContent: "center",
+  textAlign: "left",
+  minWidth: 140,
+  maxWidth: 240,
+};
+
+const folderButtonMain = {
+  fontSize: 13,
+  lineHeight: 1.2,
+  fontWeight: 900,
+  maxWidth: "100%",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  whiteSpace: "nowrap",
+};
+
+const folderButtonMeta = {
+  marginTop: 2,
+  fontSize: 11,
+  fontWeight: 700,
+  color: "#475569",
+  maxWidth: "100%",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
   whiteSpace: "nowrap",
 };
 
 const activityMeta = {
-  padding: "8px 10px",
-  borderRadius: 10,
+  padding: "10px 12px",
+  borderRadius: 12,
   marginBottom: 0,
   fontSize: 12,
-  color: "#1f2937",
-  background: "#eff6ff",
-  border: "1px solid #bfdbfe",
+  color: "#0f172a",
+  background: "linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%)",
+  border: "1px solid #93c5fd",
   flex: 1,
+};
+
+const activityMetaMain = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 10,
+  flexWrap: "wrap",
+};
+
+const activityMetaTitle = {
+  fontSize: 14,
+  fontWeight: 900,
+  color: "#1e3a8a",
+};
+
+const activityMetaDetail = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 6,
+  flexWrap: "wrap",
+  fontSize: 12,
+  color: "#1e40af",
+  fontWeight: 700,
+};
+
+const activityMetaPill = {
+  padding: "2px 8px",
+  borderRadius: 999,
+  border: "1px solid #bfdbfe",
+  background: "#ffffff",
+  color: "#1d4ed8",
+  fontWeight: 800,
+  fontSize: 11,
+};
+
+const activityMetaDot = {
+  opacity: 0.5,
+};
+
+const activityMetaLine = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 8,
+};
+
+const activityMetaKey = {
+  fontSize: 11,
+  color: "#1e3a8a",
+  fontWeight: 800,
+  letterSpacing: ".2px",
+  textTransform: "uppercase",
+};
+
+const activityMetaValuePill = {
+  padding: "2px 8px",
+  borderRadius: 999,
+  border: "1px solid #bfdbfe",
+  background: "#ffffff",
+  color: "#1e40af",
+  fontWeight: 800,
+  fontSize: 11,
 };
 
 const activityMetaRow = {
@@ -1819,6 +2294,106 @@ const tdC = {
   textAlign: "center",
 };
 
+const mobileRowsWrap = {
+  display: "grid",
+  gap: 10,
+};
+
+const mobileRowCard = {
+  border: "1px solid #e2e8f0",
+  borderRadius: 12,
+  background: "#ffffff",
+  padding: 10,
+  boxShadow: "0 2px 8px rgba(15,23,42,0.06)",
+};
+
+const mobileRowHead = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "flex-start",
+  gap: 10,
+};
+
+const mobileRowId = {
+  fontSize: 14,
+  fontWeight: 900,
+  color: "#2f6fb3",
+  lineHeight: 1.1,
+};
+
+const mobileRowName = {
+  marginTop: 3,
+  fontSize: 13,
+  color: "#111827",
+  fontWeight: 700,
+  lineHeight: 1.2,
+};
+
+const mobileAvgLabel = {
+  fontSize: 10,
+  fontWeight: 800,
+  color: "#64748b",
+  textTransform: "uppercase",
+  letterSpacing: ".2px",
+};
+
+const mobileAvgValue = {
+  marginTop: 2,
+  fontSize: 18,
+  fontWeight: 900,
+  lineHeight: 1,
+};
+
+const mobileFieldGrid = {
+  marginTop: 10,
+  display: "grid",
+  gridTemplateColumns: "1fr 1fr",
+  gap: 8,
+};
+
+const mobileField = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 4,
+  minWidth: 0,
+};
+
+const mobileFieldLabel = {
+  fontSize: 11,
+  color: "#64748b",
+  fontWeight: 800,
+};
+
+const mobileActionRow = {
+  marginTop: 10,
+  display: "flex",
+  justifyContent: "flex-end",
+};
+
+const mobileSaveBtn = {
+  minHeight: 34,
+  minWidth: 88,
+  padding: "0 12px",
+  borderRadius: 8,
+  border: "none",
+  fontWeight: 800,
+  fontSize: 12,
+  cursor: "pointer",
+};
+
+const mobileEditBtn = {
+  minHeight: 34,
+  minWidth: 88,
+  padding: "0 12px",
+  borderRadius: 8,
+  border: "none",
+  background: "#111827",
+  color: "#ffffff",
+  fontWeight: 800,
+  fontSize: 12,
+  cursor: "pointer",
+};
+
 const thLeft = {
   padding: "10px 12px",
   textAlign: "left",
@@ -1838,5 +2413,3 @@ const thCenter = {
   whiteSpace: "nowrap",
   background: "#f8fafc",
 };
-
-

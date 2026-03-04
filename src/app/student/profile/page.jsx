@@ -65,6 +65,21 @@ function getExt(fileName) {
   return ext || "png";
 }
 
+function normalizeYearLevelLabel(raw) {
+  const txt = String(raw || "").trim();
+  if (!txt) return "";
+  const n = Number(txt);
+  if (!Number.isFinite(n)) return txt;
+  const abs = Math.abs(n);
+  const mod10 = abs % 10;
+  const mod100 = abs % 100;
+  let suffix = "th";
+  if (mod10 === 1 && mod100 !== 11) suffix = "st";
+  else if (mod10 === 2 && mod100 !== 12) suffix = "nd";
+  else if (mod10 === 3 && mod100 !== 13) suffix = "rd";
+  return `${n}${suffix} Year`;
+}
+
 export default function StudentProfilePage() {
   const router = useRouter();
   const fileRef = useRef(null);
@@ -82,6 +97,7 @@ export default function StudentProfilePage() {
   const [avatarPath, setAvatarPath] = useState("");
   const [avatarUrl, setAvatarUrl] = useState("");
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const [academicLabel, setAcademicLabel] = useState("");
 
   // For right-side cards
   const [finalGrades, setFinalGrades] = useState([]);
@@ -200,10 +216,15 @@ export default function StudentProfilePage() {
         setAvatarUrl("");
       }
 
+      const yearLabel = normalizeYearLevelLabel(profile?.year_level || meta.year_level);
+      const programLabel = String(profile?.program || meta.program || "").trim();
+      const nextAcademicLabel = [programLabel, yearLabel].filter(Boolean).join(" - ");
+      setAcademicLabel(nextAcademicLabel);
+
       setForm({
-        full_name: profile?.full_name || meta.full_name || "Student User",
+        full_name: profile?.full_name || meta.full_name || "",
         email: profile?.email || user.email || "",
-        student_no: profile?.student_no || meta.student_no || "2024-130839",
+        student_no: profile?.student_no || meta.student_no || "",
 
         company: profile?.company || meta.company || "",
         job_title: profile?.job_title || meta.job_title || "",
@@ -449,9 +470,9 @@ export default function StudentProfilePage() {
               </div>
 
               <div style={profileNameWrapStyle}>
-                <div style={profileTitleStyle}>{form.full_name || "Student User"}</div>
+                <div style={profileTitleStyle}>{form.full_name || "Student"}</div>
                 <div style={profileSubStyle}>Student ID: {form.student_no || "-"}</div>
-                <div style={profileSubStyle}>BS Information - 2nd Year</div>
+                {academicLabel ? <div style={profileSubStyle}>{academicLabel}</div> : null}
 
                 {/* Avatar controls */}
                 <div style={profileAvatarActionsStyle}>

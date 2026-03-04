@@ -2,7 +2,7 @@ import { createBrowserClient } from '@supabase/ssr';
 
 let browserClient = null;
 let wrappedAuth = null;
-let invalidTokenHandled = false;
+let invalidTokenCleanupPromise = null;
 
 function isInvalidRefreshTokenError(error) {
   const message = String(error?.message || "");
@@ -34,12 +34,88 @@ function clearStoredAuthTokens() {
   clear(window.sessionStorage);
 }
 
-async function handleInvalidRefreshToken(auth) {
-  if (invalidTokenHandled) return;
-  invalidTokenHandled = true;
+function hasMissingRefreshToken(rawValue) {
+  if (!rawValue) return false;
 
-  await auth.signOut({ scope: "local" }).catch(() => {});
-  clearStoredAuthTokens();
+  try {
+    const parsed = JSON.parse(rawValue);
+    const candidates = [
+      parsed,
+      parsed?.session,
+      parsed?.currentSession,
+      parsed?.data?.session,
+    ].filter(Boolean);
+
+    let hasAccessToken = false;
+    let hasRefreshTokenField = false;
+    let hasRefreshTokenValue = false;
+
+    for (const candidate of candidates) {
+      if (candidate && typeof candidate === "object") {
+        if (typeof candidate.access_token === "string" && candidate.access_token.length > 0) {
+          hasAccessToken = true;
+        }
+        if (Object.prototype.hasOwnProperty.call(candidate, "refresh_token")) {
+          hasRefreshTokenField = true;
+          if (
+            typeof candidate.refresh_token === "string" &&
+            candidate.refresh_token.trim().length > 0
+          ) {
+            hasRefreshTokenValue = true;
+          }
+        }
+      }
+    }
+
+    if (hasRefreshTokenField && !hasRefreshTokenValue) return true;
+    if (hasAccessToken && !hasRefreshTokenField) return true;
+
+    return false;
+  } catch {
+    return true;
+  }
+}
+
+function purgeMalformedStoredAuthTokens() {
+  if (typeof window === "undefined") return;
+
+  const purge = (store) => {
+    try {
+      const keys = [];
+      for (let i = 0; i < store.length; i += 1) {
+        const key = store.key(i);
+        if (!key || !key.startsWith("sb-") || !key.endsWith("-auth-token")) continue;
+        const value = store.getItem(key);
+        if (hasMissingRefreshToken(value)) {
+          keys.push(key);
+        }
+      }
+      keys.forEach((key) => store.removeItem(key));
+    } catch {
+      // best-effort cleanup only
+    }
+  };
+
+  purge(window.localStorage);
+  purge(window.sessionStorage);
+}
+
+async function handleInvalidRefreshToken(auth) {
+  if (invalidTokenCleanupPromise) {
+    await invalidTokenCleanupPromise;
+    return;
+  }
+
+  invalidTokenCleanupPromise = (async () => {
+    await auth.signOut({ scope: "local" }).catch(() => {});
+    clearStoredAuthTokens();
+  })();
+
+  try {
+    await invalidTokenCleanupPromise;
+  } finally {
+    invalidTokenCleanupPromise = null;
+  }
 }
 
 async function safeAuthCall(auth, method, args, fallbackResult) {
@@ -111,6 +187,7 @@ export function getSupabaseBrowserClient() {
   // During server-side prerender/build, avoid throwing on import.
   if (!url || !anonKey) return null;
 
+  purgeMalformedStoredAuthTokens();
   browserClient = createBrowserClient(url, anonKey);
   sanitizeInitialSession(browserClient);
   return browserClient;

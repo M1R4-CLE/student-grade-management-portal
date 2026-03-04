@@ -31,6 +31,14 @@ function getCourseImg(title = "") {
   return "/images/dsa.jpg";
 }
 
+function getCurrentAcademicYearLabel() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const start = month >= 6 ? year : year - 1;
+  return `${start}-${start + 1} COLLEGE`;
+}
+
 export default function StudentDashboardPage() {
   const router = useRouter();
 
@@ -43,6 +51,7 @@ export default function StudentDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [showLogout, setShowLogout] = useState(false);
   const [brokenCoverKeys, setBrokenCoverKeys] = useState({});
+  const [schoolYear, setSchoolYear] = useState(getCurrentAcademicYearLabel());
 
   const MAX_LEN = 20;
   const toCoverUrl = useCallback(async (path, mode = "card") => {
@@ -461,7 +470,13 @@ export default function StudentDashboardPage() {
             </button>
           )}
 
-          <div className="featuredWrap">
+          <div
+            className="featuredWrap"
+            style={{
+              paddingLeft: featured.length > 1 ? 34 : 0,
+              paddingRight: featured.length > 1 ? 34 : 0,
+            }}
+          >
             {/* Left image */}
             <div className="featuredImg">
               {renderCourseCover(item, item?.title, "feature", "eager")}
@@ -535,9 +550,10 @@ export default function StudentDashboardPage() {
         <select
           className="yearPill"
           style={{ width: "min(200px, 100%)" }}
-          defaultValue="2025-2026 COLLEGE"
+          value={schoolYear}
+          onChange={(e) => setSchoolYear(e.target.value)}
         >
-          <option>2025-2026 COLLEGE</option>
+          <option value={getCurrentAcademicYearLabel()}>{getCurrentAcademicYearLabel()}</option>
         </select>
       </div>
 

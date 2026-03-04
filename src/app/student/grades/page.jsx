@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 function normalizePct(v) {
   const n = Number(v);
@@ -97,6 +97,7 @@ function groupActivitiesByCourse(perfRows) {
         item: row.item || "Activity",
         term: termLabel,
         scores: { Attendance: null, Quiz: null, Activity: null, Exam: null },
+        meta: { Attendance: null, Quiz: null, Activity: null, Exam: null },
       });
     }
 
@@ -104,6 +105,10 @@ function groupActivitiesByCourse(perfRows) {
     const pct = parseLogScorePct(row.type, row.status, row.score);
     if (Object.prototype.hasOwnProperty.call(entry.scores, row.type)) {
       entry.scores[row.type] = pct;
+      entry.meta[row.type] = {
+        status: row.status || "",
+        score: row.score || "",
+      };
     }
   }
 
@@ -142,10 +147,23 @@ function buildCourseTermPresence(perfRows) {
 
 export default function StudentGradesPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [grades, setGrades] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [isMobile, setIsMobile] = useState(false);
+  const [openActivity, setOpenActivity] = useState(null);
+  const [activitySearchInput, setActivitySearchInput] = useState("");
+  const [activitySearch, setActivitySearch] = useState("");
+  const [activityTermFilter, setActivityTermFilter] = useState("all");
+  const [selectedActivityCourseId, setSelectedActivityCourseId] = useState("");
+  const requestedCourseId = String(searchParams.get("courseId") || "").trim();
+  const requestedCourseCode = String(searchParams.get("course") || "").trim().toLowerCase();
+  const requestedCourseTitle = String(searchParams.get("title") || "").trim().toLowerCase();
+  const selectCourse = (courseId) => {
+    setSelectedActivityCourseId(String(courseId || ""));
+    setOpenActivity(null);
+  };
 
   useEffect(() => {
     const mq = window.matchMedia("(max-width: 700px)");
@@ -262,9 +280,11 @@ export default function StudentGradesPage() {
               ? computeFinal(prelimVal, midtermVal, finalExamVal)
               : null;
           return {
+            id: String(cid),
             code: c?.code || "N/A",
             name: c?.title || "N/A",
             instructor: teacherMap.get(c?.teacher_id) || "N/A",
+            teacherId: c?.teacher_id || "",
             prelim: prelimVal,
             midterm: midtermVal,
             final_exam: finalExamVal,
@@ -275,11 +295,20 @@ export default function StudentGradesPage() {
         .sort((a, b) => String(a.code).localeCompare(String(b.code)));
 
       setGrades(merged);
+      const requested = merged.find((x) => {
+        const idOk = requestedCourseId && String(x.id) === requestedCourseId;
+        const codeOk = requestedCourseCode && String(x.code || "").toLowerCase() === requestedCourseCode;
+        const titleOk = requestedCourseTitle && String(x.name || "").toLowerCase() === requestedCourseTitle;
+        return idOk || codeOk || titleOk;
+      });
+      if (requested) {
+        setSelectedActivityCourseId(String(requested.id));
+      }
       setLoading(false);
     };
 
     run();
-  }, [router]);
+  }, [router, requestedCourseId, requestedCourseCode, requestedCourseTitle]);
 
   // Compute overall average only over courses that have a final grade
   const gradesWith = grades.filter((g) => g.final != null);
@@ -288,6 +317,14 @@ export default function StudentGradesPage() {
       ? (gradesWith.reduce((s, g) => s + Number(g.final), 0) / gradesWith.length).toFixed(2)
       : null;
   const hasAnyActivities = grades.some((g) => (g.activities || []).length > 0);
+  const selectedCourse = grades.find((g) => String(g.id) === String(selectedActivityCourseId)) || null;
+  const selectedCourseActivities = (selectedCourse?.activities || []).filter((a) => {
+    const termKey = String(a.term || "").toLowerCase();
+    if (activityTermFilter !== "all" && termKey !== activityTermFilter) return false;
+    if (!activitySearch) return true;
+    const hay = `${a.item || ""} ${a.date || ""} ${a.term || ""} ${selectedCourse?.code || ""} ${selectedCourse?.name || ""}`.toLowerCase();
+    return hay.includes(activitySearch);
+  });
 
   if (loading) return <div style={{ padding: 24 }}>Loading grades...</div>;
 
@@ -360,8 +397,24 @@ export default function StudentGradesPage() {
               <div key={i} className="grades-mobile-card">
                 <div className="grades-mobile-main">
                   <div className="grades-mobile-left">
-                    <div className="grades-mobile-code">{g.code}</div>
-                    <div className="grades-mobile-name">{g.name}</div>
+                    <div className="grades-mobile-code">
+                      <button
+                        type="button"
+                        onClick={() => selectCourse(g.id)}
+                        style={courseSelectLinkMobile}
+                      >
+                        {g.code}
+                      </button>
+                    </div>
+                    <div className="grades-mobile-name">
+                      <button
+                        type="button"
+                        onClick={() => selectCourse(g.id)}
+                        style={courseSelectNameMobile}
+                      >
+                        {g.name}
+                      </button>
+                    </div>
                     <div className="grades-mobile-instructor">{g.instructor}</div>
 
                     <div className="grades-mobile-metrics">
@@ -406,11 +459,34 @@ export default function StudentGradesPage() {
                   style={{ borderBottom: "1px solid #f1f5f9" }}
                 >
                   <Td>
-                    <span style={{ fontWeight: 800, color: "var(--blue-main)" }}>
+                    <button
+                      type="button"
+                      onClick={() => selectCourse(g.id)}
+                      style={{
+                        fontWeight: 800,
+                        color: String(selectedActivityCourseId) === String(g.id) ? "#1d4ed8" : "var(--blue-main)",
+                        background: "transparent",
+                        border: "none",
+                        padding: 0,
+                        cursor: "pointer",
+                        textDecoration: "underline",
+                        textUnderlineOffset: 2,
+                      }}
+                      title="Click to view activity details"
+                    >
                       {g.code}
-                    </span>
+                    </button>
                   </Td>
-                  <Td>{g.name}</Td>
+                  <Td>
+                    <button
+                      type="button"
+                      onClick={() => selectCourse(g.id)}
+                      style={courseSelectNameDesktop}
+                      title="Click to view activity details"
+                    >
+                      {g.name}
+                    </button>
+                  </Td>
                   <Td style={{ color: "#6b7280" }}>{g.instructor}</Td>
                   <Td center>{fmtPct(g.prelim)}</Td>
                   <Td center>{fmtPct(g.midterm)}</Td>
@@ -456,35 +532,216 @@ export default function StudentGradesPage() {
         </div>
       )}
 
-      {hasAnyActivities && (
+      {selectedCourse && (
         <div className="glassCard" style={{ marginTop: 12, padding: 14 }}>
-          <div style={{ fontWeight: 900, marginBottom: 8, color: "#111827" }}>Activity Details</div>
-          <div style={{ display: "grid", gap: 8 }}>
-            {grades.map((g, i) => {
-              const list = g.activities || [];
-              if (!list.length) return null;
-              return (
-                <div key={`act-${i}`} style={{ border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, padding: 10, background: "#fff" }}>
-                  <div style={{ fontWeight: 800, color: "var(--blue-main)", marginBottom: 6 }}>
-                    {g.code} - {g.name}
-                  </div>
-                  <div style={{ display: "grid", gap: 4 }}>
-                    {list.slice(0, 8).map((a, idx) => (
-                      <div key={idx} style={{ fontSize: 12, color: "#374151", display: "flex", flexWrap: "wrap", gap: 10 }}>
-                        <span>{a.date}</span>
-                        <span style={{ fontWeight: 800 }}>{a.term}</span>
-                        <span>{a.item}</span>
-                        <span>A: {fmtPct(a.scores.Attendance)}</span>
-                        <span>Q: {fmtPct(a.scores.Quiz)}</span>
-                        <span>Act: {fmtPct(a.scores.Activity)}</span>
-                        <span>Ex: {fmtPct(a.scores.Exam)}</span>
-                        <span style={{ fontWeight: 800, color: gradeColor(a.average) }}>Avg: {fmtPct(a.average)}</span>
-                      </div>
-                    ))}
+          <div style={{ fontWeight: 900, marginBottom: 6, color: "#111827" }}>Activity Details</div>
+          <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 8 }}>
+            Tap/click an activity to view detailed scores and percentages.
+          </div>
+          {(selectedCourse.activities || []).length === 0 ? (
+            <div style={noGradeWrap}>
+              <div style={noGradeText}>
+                You don&apos;t have grade yet. Contact your teacher.
+              </div>
+              <button
+                type="button"
+                onClick={() => router.push("/student/messages")}
+                style={messageTeacherBtn}
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path d="M4 6h16v12H4V6Z" stroke="currentColor" strokeWidth="2" />
+                  <path d="m4 7 8 6 8-6" stroke="currentColor" strokeWidth="2" />
+                </svg>
+                <span>Message {selectedCourse.instructor || "Teacher"}</span>
+              </button>
+            </div>
+          ) : (
+            <>
+              <div style={activityToolbar}>
+                <input
+                  type="text"
+                  value={activitySearchInput}
+                  onChange={(e) => setActivitySearchInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      setActivitySearch(activitySearchInput.trim().toLowerCase());
+                    }
+                  }}
+                  placeholder="Search date, activity, or term..."
+                  style={activitySearchInputStyle}
+                />
+                <button
+                  type="button"
+                  onClick={() => setActivitySearch(activitySearchInput.trim().toLowerCase())}
+                  style={activitySearchBtn}
+                >
+                  Search
+                </button>
+                <div style={activityTermBtnWrap}>
+                  {[
+                    { key: "prelim", label: "Prelim" },
+                    { key: "midterm", label: "Midterm" },
+                    { key: "final", label: "Final" },
+                  ].map((term) => {
+                    const active = activityTermFilter === term.key;
+                    return (
+                      <button
+                        key={term.key}
+                        type="button"
+                        onClick={() => setActivityTermFilter((prev) => (prev === term.key ? "all" : term.key))}
+                        style={{
+                          ...activityTermBtn,
+                          background: active ? "#1d4ed8" : "#ffffff",
+                          color: active ? "#ffffff" : "#334155",
+                          borderColor: active ? "#1d4ed8" : "#cbd5e1",
+                        }}
+                      >
+                        {term.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {selectedCourseActivities.length === 0 ? (
+                <div style={noMatchBox}>No activity matches your search/filter.</div>
+              ) : (
+                <div style={{ display: "grid", gap: 8, maxHeight: 460, overflowY: "auto", paddingRight: 2 }}>
+                  <div style={{ border: "1px solid rgba(0,0,0,0.08)", borderRadius: 10, padding: 10, background: "#fff" }}>
+                    <div style={{ fontWeight: 800, color: "var(--blue-main)", marginBottom: 6 }}>
+                      {selectedCourse.code} - {selectedCourse.name}{" "}
+                      <span style={{ color: "#6b7280", fontWeight: 700 }}>({selectedCourseActivities.length})</span>
+                    </div>
+                    <div style={{ display: "grid", gap: 4 }}>
+                      {selectedCourseActivities.map((a, idx) => {
+                        const hasAttendance = a.scores.Attendance != null;
+                        const hasQuiz = a.scores.Quiz != null;
+                        const hasActivity = a.scores.Activity != null;
+                        const hasExam = a.scores.Exam != null;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setOpenActivity({ course: selectedCourse, activity: a })}
+                            style={{
+                              border: "1px solid #e5e7eb",
+                              background: "#f8fafc",
+                              borderRadius: 8,
+                              padding: "8px 10px",
+                              textAlign: "left",
+                              cursor: "pointer",
+                            }}
+                          >
+                            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                              <div style={{ fontSize: 12, color: "#111827", fontWeight: 800 }}>
+                                {a.item}
+                              </div>
+                              <div style={{ fontSize: 11, color: "#6b7280", fontWeight: 700 }}>
+                                {a.term}
+                              </div>
+                            </div>
+                            <div style={{ marginTop: 2, fontSize: 11, color: "#6b7280", fontWeight: 700 }}>
+                              {a.date}
+                            </div>
+                            <div style={{ marginTop: 6, display: "flex", gap: 6, flexWrap: "wrap" }}>
+                              {hasAttendance && <span style={detailChip}>Attendance {fmtPct(a.scores.Attendance)}</span>}
+                              {hasQuiz && <span style={detailChip}>Quiz {fmtPct(a.scores.Quiz)}</span>}
+                              {hasActivity && <span style={detailChip}>Activity {fmtPct(a.scores.Activity)}</span>}
+                              {hasExam && <span style={detailChip}>Exam {fmtPct(a.scores.Exam)}</span>}
+                              <span style={{ ...detailChip, fontWeight: 900, color: gradeColor(a.average) }}>Avg {fmtPct(a.average)}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
-              );
-            })}
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {openActivity && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,.35)",
+            zIndex: 1100,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 14,
+          }}
+          onClick={() => setOpenActivity(null)}
+        >
+          <div
+            style={{
+              width: "min(680px, 100%)",
+              background: "#fff",
+              borderRadius: 12,
+              border: "1px solid #e5e7eb",
+              padding: 14,
+              boxShadow: "0 20px 40px rgba(0,0,0,.2)",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+              <div>
+                <div style={{ fontWeight: 900, color: "var(--blue-main)" }}>
+                  {openActivity.course.code} - {openActivity.course.name}
+                </div>
+                <div style={{ fontSize: 12, color: "#6b7280", marginTop: 2 }}>
+                  {openActivity.activity.item} • {openActivity.activity.term} • {openActivity.activity.date}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpenActivity(null)}
+                style={{ border: "1px solid #d1d5db", background: "#fff", borderRadius: 8, width: 32, height: 32, cursor: "pointer" }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div style={{ marginTop: 10, display: "grid", gap: 8 }}>
+              {["Attendance", "Quiz", "Activity", "Exam"].map((type) => {
+                const pct = openActivity.activity.scores?.[type];
+                const meta = openActivity.activity.meta?.[type];
+                const hasData = pct != null || (meta && (meta.score || meta.status));
+                if (!hasData) return null;
+                const rawDisplay = type === "Attendance" ? (meta?.status || "—") : (meta?.score || "—");
+                return (
+                  <div
+                    key={type}
+                    style={{
+                      border: "1px solid #e5e7eb",
+                      borderRadius: 8,
+                      padding: "8px 10px",
+                      display: "grid",
+                      gridTemplateColumns: isMobile ? "1fr" : "140px 1fr 110px",
+                      gap: 8,
+                      alignItems: "center",
+                    }}
+                  >
+                    <div style={{ fontWeight: 800, color: "#111827" }}>{type}</div>
+                    <div style={{ fontSize: 12, color: "#374151" }}>
+                      {type === "Attendance" ? "Status" : "Score"}: <b>{rawDisplay}</b>
+                    </div>
+                    <div style={{ fontWeight: 900, color: gradeColor(pct), textAlign: isMobile ? "left" : "right" }}>
+                      {fmtPct(pct)}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
@@ -606,3 +863,144 @@ function Td({ children, center, style: extraStyle }) {
     </td>
   );
 }
+
+const detailChip = {
+  display: "inline-block",
+  padding: "2px 8px",
+  borderRadius: 999,
+  background: "#eef2ff",
+  border: "1px solid #dbeafe",
+  color: "#1e3a8a",
+  fontSize: 11,
+  fontWeight: 700,
+};
+
+const activityToolbar = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  flexWrap: "wrap",
+  marginBottom: 10,
+};
+
+const activitySearchInputStyle = {
+  height: 36,
+  minWidth: 220,
+  flex: "1 1 240px",
+  borderRadius: 10,
+  border: "1px solid #cbd5e1",
+  padding: "0 12px",
+  fontSize: 13,
+  color: "#111827",
+  background: "#ffffff",
+};
+
+const activitySearchBtn = {
+  height: 36,
+  padding: "0 14px",
+  borderRadius: 10,
+  border: "1px solid #1d4ed8",
+  background: "#1d4ed8",
+  color: "#ffffff",
+  fontSize: 12,
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const activityTermBtnWrap = {
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
+  flexWrap: "wrap",
+};
+
+const activityTermBtn = {
+  height: 36,
+  minWidth: 82,
+  padding: "0 12px",
+  borderRadius: 10,
+  border: "1px solid #cbd5e1",
+  background: "#ffffff",
+  color: "#334155",
+  fontSize: 12,
+  fontWeight: 800,
+  cursor: "pointer",
+};
+
+const noMatchBox = {
+  padding: "18px 12px",
+  borderRadius: 10,
+  border: "1px solid #e5e7eb",
+  background: "#f8fafc",
+  color: "#6b7280",
+  fontSize: 12,
+  fontWeight: 700,
+  textAlign: "center",
+};
+
+const noGradeWrap = {
+  border: "1px solid #e2e8f0",
+  borderRadius: 12,
+  background: "#f8fafc",
+  padding: "14px 12px",
+  display: "grid",
+  justifyItems: "start",
+  gap: 10,
+};
+
+const noGradeText = {
+  fontSize: 13,
+  fontWeight: 700,
+  color: "#334155",
+};
+
+const messageTeacherBtn = {
+  height: 36,
+  padding: "0 12px",
+  borderRadius: 10,
+  border: "1px solid #1d4ed8",
+  background: "#eff6ff",
+  color: "#1e3a8a",
+  fontSize: 12,
+  fontWeight: 800,
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+};
+
+const courseSelectLinkMobile = {
+  border: "none",
+  background: "transparent",
+  padding: 0,
+  color: "inherit",
+  font: "inherit",
+  fontWeight: "inherit",
+  cursor: "pointer",
+  textDecoration: "underline",
+  textUnderlineOffset: 2,
+};
+
+const courseSelectNameMobile = {
+  border: "none",
+  background: "transparent",
+  padding: 0,
+  color: "#111827",
+  font: "inherit",
+  cursor: "pointer",
+  textAlign: "left",
+  textDecoration: "underline",
+  textUnderlineOffset: 2,
+};
+
+const courseSelectNameDesktop = {
+  border: "none",
+  background: "transparent",
+  padding: 0,
+  color: "#111827",
+  cursor: "pointer",
+  textAlign: "left",
+  font: "inherit",
+  textDecoration: "underline",
+  textUnderlineOffset: 2,
+};

@@ -404,7 +404,7 @@ export default function TeacherClassManagementPage() {
           name: p?.full_name || "-",
           studentNo: p?.student_no || "-",
           email: p?.email || "-",
-          program: p?.program || "BS Information Technology",
+          program: p?.program || "-",
           year_level: p?.year_level || "",
           avatar_url: await toAvatarUrl(p?.avatar_path || ""),
           enrolledAt: e.enrolled_at ? new Date(e.enrolled_at).toLocaleDateString() : "-",
@@ -417,10 +417,10 @@ export default function TeacherClassManagementPage() {
 
   const normalizeStudent = async (row, fallbackQuery = "") => ({
     id: row.id,
-    full_name: row.full_name || "No name",
+    full_name: row.full_name || "Unnamed Student",
     email: row.email || fallbackQuery || "-",
     student_no: row.student_no || "-",
-    program: row.program || "BS Information Technology",
+    program: row.program || "-",
     year_level: row.year_level || "",
     avatar_path: row.avatar_path || "",
     avatar_url: await toAvatarUrl(row.avatar_path || ""),

@@ -18,13 +18,21 @@ function getCourseImg(title = "") {
   return "/images/dsa.jpg";
 }
 
+function getCurrentAcademicYearLabel() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const start = month >= 6 ? year : year - 1;
+  return `${start}-${start + 1} COLLEGE`;
+}
+
 export default function StudentCoursesPage() {
   const router = useRouter();
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [schoolYear, setSchoolYear] = useState("2025-2026 COLLEGE");
+  const [schoolYear, setSchoolYear] = useState(getCurrentAcademicYearLabel());
   const [page, setPage] = useState(1);
   const [direction, setDirection] = useState(1); // 1 = next, -1 = previous
   const [brokenCoverKeys, setBrokenCoverKeys] = useState({});
@@ -235,7 +243,7 @@ export default function StudentCoursesPage() {
             color: "#3f3f46",
           }}
         >
-          <option>2025-2026 COLLEGE</option>
+          <option value={getCurrentAcademicYearLabel()}>{getCurrentAcademicYearLabel()}</option>
         </select>
       </div>
 
@@ -310,10 +318,10 @@ export default function StudentCoursesPage() {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {course?.title || "Class Name"}
+                      {course?.title || "Untitled Course"}
                     </div>
                     <div className="courses-card-code" style={{ fontSize: 25, marginTop: 4 }}>
-                      Class Code: {course?.code || "CLS-001"}
+                      Class Code: {course?.code || "N/A"}
                     </div>
                   </div>
 
@@ -323,9 +331,9 @@ export default function StudentCoursesPage() {
                       type="button"
                       onClick={() =>
                         router.push(
-                          `/student/grades?course=${encodeURIComponent(course?.code || "")}&title=${encodeURIComponent(
-                            course?.title || ""
-                          )}`
+                          `/student/grades?courseId=${encodeURIComponent(String(course?.id || ""))}&course=${encodeURIComponent(
+                            course?.code || ""
+                          )}&title=${encodeURIComponent(course?.title || "")}`
                         )
                       }
                       style={{

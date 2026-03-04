@@ -8,6 +8,9 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/app/lib/supabaseClient";
 import { useRouter, useSearchParams } from "next/navigation";
 
+const NO_SUBJECT = "(No Subject)";
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
+
 function fmtTime(ts) {
   try {
     return new Date(ts).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -319,7 +322,7 @@ export default function TeacherMessagesPage() {
 
     await loadRecipients();
 
-    const originalSubject = msg.subject?.trim() || "(No Subject)";
+    const originalSubject = msg.subject?.trim() || NO_SUBJECT;
     const subj = originalSubject.toLowerCase().startsWith("re:") ? originalSubject : `Re: ${originalSubject}`;
 
     setComposeRecipientId(msg.sender_id);
@@ -358,7 +361,7 @@ export default function TeacherMessagesPage() {
         {
           sender_id: senderId,
           recipient_id: composeRecipientId,
-          subject: composeSubject.trim() || "(No Subject)",
+          subject: composeSubject.trim() || NO_SUBJECT,
           body: composeBody.trim(),
         },
       ])
@@ -384,7 +387,7 @@ export default function TeacherMessagesPage() {
         user_id: composeRecipientId,
         type: "message",
         title: "New message",
-        body: composeSubject.trim() || "(No Subject)",
+        body: composeSubject.trim() || NO_SUBJECT,
         link: notifLink,
       });
     }
@@ -418,12 +421,14 @@ export default function TeacherMessagesPage() {
 
     if (msg) {
       const f = computeFolder(msg, userId);
-      setFolder(f);
-      setOpenMsg(msg);
-      if (msg.recipient_id === userId && !msg.recipient_read_at) {
-        markAsRead(msg.id);
-      }
-      return;
+      const t = setTimeout(() => {
+        setFolder(f);
+        setOpenMsg(msg);
+        if (msg.recipient_id === userId && !msg.recipient_read_at) {
+          markAsRead(msg.id);
+        }
+      }, 0);
+      return () => clearTimeout(t);
     }
 
     const fetchOne = async () => {
@@ -450,7 +455,10 @@ export default function TeacherMessagesPage() {
       }
     };
 
-    fetchOne();
+    const t = setTimeout(() => {
+      fetchOne();
+    }, 0);
+    return () => clearTimeout(t);
   }, [openId, userId, messages]);
 
   if (loading) return <div style={{ padding: 40 }}>Loading Messages</div>;
@@ -570,7 +578,7 @@ export default function TeacherMessagesPage() {
           </div>
 
           <select value={pageSize} onChange={(e) => setPageSize(Number(e.target.value))} style={pageSelectStyle}>
-            {[10, 20, 50, 100].map((n) => (
+            {PAGE_SIZE_OPTIONS.map((n) => (
               <option key={n}>{n}</option>
             ))}
           </select>
@@ -727,7 +735,7 @@ export default function TeacherMessagesPage() {
             </div>
 
             <div style={{ marginTop: 10 }}>
-              <div><b>Subject:</b> {openMsg.subject || "(No Subject)"}</div>
+              <div><b>Subject:</b> {openMsg.subject || NO_SUBJECT}</div>
               <div><b>From:</b> {openMsg.sender?.full_name || openMsg.sender?.email || openMsg.sender_id}</div>
               <div><b>To:</b> {openMsg.recipient?.full_name || openMsg.recipient?.email || openMsg.recipient_id}</div>
             </div>
