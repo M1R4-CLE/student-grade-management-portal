@@ -445,243 +445,252 @@ export default function StudentProfilePage() {
     ? { ...btnWhite, height: 38, borderRadius: 10, padding: "0 16px", fontSize: 14 }
     : btnWhite;
 
+  const profileHeaderSection = (
+    <div style={profileHeaderCardStyle}>
+      <div style={profileHeaderRowStyle}>
+        <div style={profileAvatarStyle}>
+          {avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={avatarUrl}
+              alt="Avatar"
+              loading="eager"
+              decoding="async"
+              style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
+            />
+          ) : (
+            <span style={{ fontSize: 34, opacity: 0.9 }}>👤</span>
+          )}
+        </div>
+
+        <div style={profileNameWrapStyle}>
+          <div style={profileTitleStyle}>{form.full_name || "Student"}</div>
+          <div style={profileSubStyle}>Student ID: {form.student_no || "-"}</div>
+          {academicLabel ? <div style={profileSubStyle}>{academicLabel}</div> : null}
+
+          <div style={profileAvatarActionsStyle}>
+            <button onClick={pickAvatar} disabled={avatarBusy} style={profileChangeBtnStyle}>
+              {avatarBusy ? "Uploading..." : " Change Avatar"}
+            </button>
+
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp"
+              style={{ display: "none" }}
+              onChange={(e) => onAvatarSelected(e.target.files?.[0])}
+            />
+
+            {avatarPath ? <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Saved</span> : null}
+          </div>
+        </div>
+
+        <div style={profileEditWrapStyle}>
+          <button
+            onClick={() => setEditing((v) => !v)}
+            style={profileEditBtnStyle}
+            type="button"
+          >
+            {editing ? "Cancel Edit" : "Edit Profile"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const profileInfoSection = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <Section title="Basic Information" editing={editing} isMobile={isMobile}>
+        <Field label="Full Name" value={form.full_name} editing={editing} onChange={(v) => handleChange("full_name", v)} />
+        <Field label="Company" value={form.company} editing={editing} onChange={(v) => handleChange("company", v)} optional />
+        <Field label="Email Address" value={form.email} editing={editing} onChange={(v) => handleChange("email", v)} />
+        <Field label="Job Title" value={form.job_title} editing={editing} onChange={(v) => handleChange("job_title", v)} optional />
+        <Field label="Pronoun" value={form.pronoun} editing={editing} onChange={(v) => handleChange("pronoun", v)} optional />
+        <Field label="Department" value={form.department} editing={editing} onChange={(v) => handleChange("department", v)} optional />
+      </Section>
+
+      <Section title="Contact Information" editing={editing} isMobile={isMobile}>
+        <Field label="Mailing Address" value={form.mailing_address} editing={editing} onChange={(v) => handleChange("mailing_address", v)} optional />
+        <Field label="Phone Number" value={form.phone_number} editing={editing} onChange={(v) => handleChange("phone_number", v)} optional />
+        <Field label="Business Fax Number" value={form.business_fax} editing={editing} onChange={(v) => handleChange("business_fax", v)} optional />
+        <div />
+      </Section>
+
+      <Section title="Additional Information" editing={editing} isMobile={isMobile}>
+        <Field label="Gender" value={form.gender} editing={editing} onChange={(v) => handleChange("gender", v)} optional />
+        <Field label="Education Level" value={form.education_level} editing={editing} onChange={(v) => handleChange("education_level", v)} optional />
+        <Field label="Additional Name" value={form.additional_name} editing={editing} onChange={(v) => handleChange("additional_name", v)} optional />
+        <Field label="Website" value={form.website} editing={editing} onChange={(v) => handleChange("website", v)} optional />
+        <Field label="Birthday" value={form.birthday} editing={editing} onChange={(v) => handleChange("birthday", v)} optional type="date" />
+        <div />
+      </Section>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 2px", gap: 12 }}>
+        <div
+          style={{
+            color:
+              message.toLowerCase().includes("success") || message.toLowerCase().includes("updated")
+                ? "#2e7d32"
+                : "#b23a3a",
+            fontWeight: 700,
+            whiteSpace: "pre-wrap",
+            minHeight: 18,
+          }}
+        >
+          {message}
+        </div>
+
+        {editing && (
+          <button onClick={saveProfile} disabled={saving} style={btnBlue}>
+            {saving ? "Saving..." : "Save Profile"}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
+  const profileAcademicSection = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={card}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontWeight: 900 }}>Academic Performance</div>
+          <div style={{ opacity: 0.6 }}>...</div>
+        </div>
+
+        {(() => {
+          const gpaPercent = clamp(Math.round((stats.gpa / 4) * 100), 0, 100);
+          const isZero = gpaPercent === 0;
+
+          return (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: isMobile ? "78px 1fr" : "100px 1fr",
+                gap: isMobile ? 8 : 10,
+                marginTop: 10,
+                alignItems: "center",
+              }}
+            >
+              <div style={donutWrap(isZero, gpaPercent, isMobile)}>
+                <div style={donutInner(isMobile)}>
+                  <div style={{ fontWeight: 900, color: isZero ? "#9ca3af" : "#111827" }}>{stats.gpa.toFixed(2)}</div>
+                </div>
+              </div>
+
+              <div>
+                <div style={{ fontWeight: 900, color: "#111827" }}>Overall GPA</div>
+                <div
+                  style={{
+                    fontSize: isMobile ? 30 : 20,
+                    fontWeight: 900,
+                    marginTop: 3,
+                    lineHeight: 1,
+                    color: isZero ? "#9ca3af" : "#111827",
+                  }}
+                >
+                  {stats.gpa.toFixed(2)}
+                </div>
+
+                <div style={{ marginTop: 8, height: 6, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${gpaPercent}%`, background: isZero ? "#d1d5db" : "#22c55e" }} />
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    marginTop: 10,
+                    color: "#6b7280",
+                    fontSize: isMobile ? 11 : 12,
+                    gap: 10,
+                  }}
+                >
+                  <div>
+                    Completed Units
+                    <div style={{ fontWeight: 900, color: "#111827" }}>{stats.completedUnits}</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    Attendance
+                    <div style={{ fontWeight: 900, color: "#111827" }}>
+                      {stats.attendance == null ? "-" : `${stats.attendance}%`}
+                    </div>
+                  </div>
+                </div>
+
+                {!stats.hasData && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
+                    (No grades yet - values will update once grades exist.)
+                  </div>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+      </div>
+
+      <div style={card}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ fontWeight: 900 }}>Grade Distribution</div>
+          <div style={{ opacity: 0.6 }}>...</div>
+        </div>
+
+        <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
+          {[
+            ["A", stats.dist.A, "#22c55e"],
+            ["A-", stats.dist["A-"], "#34d399"],
+            ["B+", stats.dist["B+"], "#3b82f6"],
+            ["B", stats.dist.B, "#60a5fa"],
+            ["C+", stats.dist["C+"], "#f59e0b"],
+            ["D", stats.dist.D, "#f97316"],
+            ["F", stats.dist.F, "#ef4444"],
+          ].map(([label, val, color]) => {
+            const isZero = Number(val) === 0;
+            const barColor = isZero ? "#d1d5db" : color;
+
+            return (
+              <div
+                key={label}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: isMobile ? "28px 1fr 36px" : "36px 1fr 44px",
+                  gap: isMobile ? 8 : 10,
+                  alignItems: "center",
+                }}
+              >
+                <div style={{ fontWeight: 900 }}>{label}</div>
+                <div style={{ height: isMobile ? 10 : 8, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
+                  <div style={{ height: "100%", width: `${clamp(val, 0, 100)}%`, background: barColor }} />
+                </div>
+                <div style={{ textAlign: "right", fontWeight: 900, color: isZero ? "#9ca3af" : "#111827" }}>
+                  {val}%
+                </div>
+              </div>
+            );
+          })}
+
+          {!stats.hasData && (
+            <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
+              (No grades yet - distribution will populate once grades exist.)
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div style={wrap}>
       <div style={isMobile ? { ...grid, gridTemplateColumns: "1fr", gap: 10 } : grid}>
-        {/* LEFT SIDE */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {/* Top profile header card */}
-          <div style={profileHeaderCardStyle}>
-            <div style={profileHeaderRowStyle}>
-              {/* avatar */}
-              <div style={profileAvatarStyle}>
-                {avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={avatarUrl}
-                    alt="Avatar"
-                    loading="eager"
-                    decoding="async"
-                    style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "50%" }}
-                  />
-                ) : (
-                  <span style={{ fontSize: 34, opacity: 0.9 }}>👤</span>
-                )}
-              </div>
-
-              <div style={profileNameWrapStyle}>
-                <div style={profileTitleStyle}>{form.full_name || "Student"}</div>
-                <div style={profileSubStyle}>Student ID: {form.student_no || "-"}</div>
-                {academicLabel ? <div style={profileSubStyle}>{academicLabel}</div> : null}
-
-                {/* Avatar controls */}
-                <div style={profileAvatarActionsStyle}>
-                  <button onClick={pickAvatar} disabled={avatarBusy} style={profileChangeBtnStyle}>
-                    {avatarBusy ? "Uploading..." : " Change Avatar"}
-                  </button>
-
-                  <input
-                    ref={fileRef}
-                    type="file"
-                    accept="image/png,image/jpeg,image/jpg,image/webp"
-                    style={{ display: "none" }}
-                    onChange={(e) => onAvatarSelected(e.target.files?.[0])}
-                  />
-
-                  {avatarPath ? <span style={{ fontSize: 12, color: "#6b7280", fontWeight: 700 }}>Saved</span> : null}
-                </div>
-              </div>
-
-              <div style={profileEditWrapStyle}>
-                <button
-                  onClick={() => setEditing((v) => !v)}
-                  style={profileEditBtnStyle}
-                  type="button"
-                >
-                  {editing ? "Cancel Edit" : "Edit Profile"}
-                </button>
-              </div>
-            </div>
+        {isMobile ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {profileHeaderSection}
+            {profileAcademicSection}
+            {profileInfoSection}
           </div>
-
-          <Section title="Basic Information" editing={editing} isMobile={isMobile}>
-            <Field label="Full Name" value={form.full_name} editing={editing} onChange={(v) => handleChange("full_name", v)} />
-            <Field label="Company" value={form.company} editing={editing} onChange={(v) => handleChange("company", v)} optional />
-            <Field label="Email Address" value={form.email} editing={editing} onChange={(v) => handleChange("email", v)} />
-            <Field label="Job Title" value={form.job_title} editing={editing} onChange={(v) => handleChange("job_title", v)} optional />
-            <Field label="Pronoun" value={form.pronoun} editing={editing} onChange={(v) => handleChange("pronoun", v)} optional />
-            <Field label="Department" value={form.department} editing={editing} onChange={(v) => handleChange("department", v)} optional />
-          </Section>
-
-          <Section title="Contact Information" editing={editing} isMobile={isMobile}>
-            <Field label="Mailing Address" value={form.mailing_address} editing={editing} onChange={(v) => handleChange("mailing_address", v)} optional />
-            <Field label="Phone Number" value={form.phone_number} editing={editing} onChange={(v) => handleChange("phone_number", v)} optional />
-            <Field label="Business Fax Number" value={form.business_fax} editing={editing} onChange={(v) => handleChange("business_fax", v)} optional />
-            <div />
-          </Section>
-
-          <Section title="Additional Information" editing={editing} isMobile={isMobile}>
-            <Field label="Gender" value={form.gender} editing={editing} onChange={(v) => handleChange("gender", v)} optional />
-            <Field label="Education Level" value={form.education_level} editing={editing} onChange={(v) => handleChange("education_level", v)} optional />
-            <Field label="Additional Name" value={form.additional_name} editing={editing} onChange={(v) => handleChange("additional_name", v)} optional />
-            <Field label="Website" value={form.website} editing={editing} onChange={(v) => handleChange("website", v)} optional />
-            <Field label="Birthday" value={form.birthday} editing={editing} onChange={(v) => handleChange("birthday", v)} optional type="date" />
-            <div />
-          </Section>
-
-          {/* footer actions */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 2px", gap: 12 }}>
-            <div
-              style={{
-                color:
-                  message.toLowerCase().includes("success") || message.toLowerCase().includes("updated")
-                    ? "#2e7d32"
-                    : "#b23a3a",
-                fontWeight: 700,
-                whiteSpace: "pre-wrap",
-                minHeight: 18,
-              }}
-            >
-              {message}
-            </div>
-
-            {editing && (
-              <button onClick={saveProfile} disabled={saving} style={btnBlue}>
-                {saving ? "Saving..." : "Save Profile"}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* RIGHT SIDE (only these cards changed) */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-          {/* Academic Performance */}
-          <div style={card}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontWeight: 900 }}>Academic Performance</div>
-              <div style={{ opacity: 0.6 }}>...</div>
-            </div>
-
-            {(() => {
-              const gpaPercent = clamp(Math.round((stats.gpa / 4) * 100), 0, 100);
-              const isZero = gpaPercent === 0;
-
-              return (
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: isMobile ? "78px 1fr" : "100px 1fr",
-                    gap: isMobile ? 8 : 10,
-                    marginTop: 10,
-                    alignItems: "center",
-                  }}
-                >
-                  <div style={donutWrap(isZero, gpaPercent, isMobile)}>
-                    <div style={donutInner(isMobile)}>
-                      <div style={{ fontWeight: 900, color: isZero ? "#9ca3af" : "#111827" }}>{stats.gpa.toFixed(2)}</div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ fontWeight: 900, color: "#111827" }}>Overall GPA</div>
-                    <div
-                      style={{
-                        fontSize: isMobile ? 30 : 20,
-                        fontWeight: 900,
-                        marginTop: 3,
-                        lineHeight: 1,
-                        color: isZero ? "#9ca3af" : "#111827",
-                      }}
-                    >
-                      {stats.gpa.toFixed(2)}
-                    </div>
-
-                    <div style={{ marginTop: 8, height: 6, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${gpaPercent}%`, background: isZero ? "#d1d5db" : "#22c55e" }} />
-                    </div>
-
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        marginTop: 10,
-                        color: "#6b7280",
-                        fontSize: isMobile ? 11 : 12,
-                        gap: 10,
-                      }}
-                    >
-                      <div>
-                        Completed Units
-                        <div style={{ fontWeight: 900, color: "#111827" }}>{stats.completedUnits}</div>
-                      </div>
-                      <div style={{ textAlign: "right" }}>
-                        Attendance
-                        <div style={{ fontWeight: 900, color: "#111827" }}>
-                          {stats.attendance == null ? "-" : `${stats.attendance}%`}
-                        </div>
-                      </div>
-                    </div>
-
-                    {!stats.hasData && (
-                      <div style={{ marginTop: 8, fontSize: 12, color: "#6b7280" }}>
-                        (No grades yet - values will update once grades exist.)
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* Grade Distribution */}
-          <div style={card}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div style={{ fontWeight: 900 }}>Grade Distribution</div>
-              <div style={{ opacity: 0.6 }}>...</div>
-            </div>
-
-            <div style={{ marginTop: 10, display: "grid", gridTemplateColumns: "1fr", gap: 10 }}>
-              {[
-                ["A", stats.dist.A, "#22c55e"],
-                ["A-", stats.dist["A-"], "#34d399"],
-                ["B+", stats.dist["B+"], "#3b82f6"],
-                ["B", stats.dist.B, "#60a5fa"],
-                ["C+", stats.dist["C+"], "#f59e0b"],
-                ["D", stats.dist.D, "#f97316"],
-                ["F", stats.dist.F, "#ef4444"],
-              ].map(([label, val, color]) => {
-                const isZero = Number(val) === 0;
-                const barColor = isZero ? "#d1d5db" : color;
-
-                return (
-                  <div
-                    key={label}
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: isMobile ? "28px 1fr 36px" : "36px 1fr 44px",
-                      gap: isMobile ? 8 : 10,
-                      alignItems: "center",
-                    }}
-                  >
-                    <div style={{ fontWeight: 900 }}>{label}</div>
-                    <div style={{ height: isMobile ? 10 : 8, borderRadius: 999, background: "#e5e7eb", overflow: "hidden" }}>
-                      <div style={{ height: "100%", width: `${clamp(val, 0, 100)}%`, background: barColor }} />
-                    </div>
-                    <div style={{ textAlign: "right", fontWeight: 900, color: isZero ? "#9ca3af" : "#111827" }}>
-                      {val}%
-                    </div>
-                  </div>
-                );
-              })}
-
-              {!stats.hasData && (
-                <div style={{ marginTop: 6, fontSize: 12, color: "#6b7280" }}>
-                  (No grades yet - distribution will populate once grades exist.)
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        ) : (
+          profileInfoSection
+        )}
+        {isMobile ? null : profileAcademicSection}
       </div>
     </div>
   );

@@ -14,7 +14,7 @@ function getExt(fileName) {
   return ext === "jpeg" ? "jpg" : ext || "jpg";
 }
 
-const PAGE_SIZE = 4;
+const PAGE_SIZE = 5;
 
 export default function TeacherClassManagementPage() {
   const router = useRouter();
@@ -115,7 +115,7 @@ export default function TeacherClassManagementPage() {
       .from("courses")
       .select("id, code, title, cover_path")
       .eq("teacher_id", id)
-      .order("id", { ascending: true });
+      .order("id", { ascending: false });
 
     if (!withMeta.error) {
       setCourseMetaSupported(true);
@@ -126,7 +126,7 @@ export default function TeacherClassManagementPage() {
         .from("courses")
         .select("id, code, title")
         .eq("teacher_id", id)
-        .order("id", { ascending: true });
+        .order("id", { ascending: false });
       rows = (basic.data || []).map(c => ({ ...c, cover_path: "" }));
     }
 
@@ -171,6 +171,7 @@ export default function TeacherClassManagementPage() {
       setNewCode("");
       setNewTitle("");
       await fetchCourses();
+      setPage(1);
     }
     setAddBusy(false);
   };
@@ -223,6 +224,7 @@ export default function TeacherClassManagementPage() {
     }
 
     await fetchCourses();
+    setPage(1);
     setDeleteOpen(false);
     setDeleteBusy(false);
   };

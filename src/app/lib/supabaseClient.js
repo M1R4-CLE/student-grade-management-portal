@@ -3,6 +3,7 @@ import { createBrowserClient } from '@supabase/ssr';
 let browserClient = null;
 let wrappedAuth = null;
 let invalidTokenCleanupPromise = null;
+let invalidTokenRejectionHandlerAttached = false;
 
 function isInvalidRefreshTokenError(error) {
   const message = String(error?.message || "");
@@ -118,6 +119,26 @@ async function handleInvalidRefreshToken(auth) {
   }
 }
 
+function attachInvalidRefreshTokenRejectionHandler(client) {
+  if (typeof window === "undefined" || invalidTokenRejectionHandlerAttached) return;
+
+  window.addEventListener("unhandledrejection", (event) => {
+    const reason = event?.reason;
+    const authError =
+      reason?.error ||
+      reason?.__isAuthError ||
+      reason?.cause ||
+      reason;
+
+    if (!isInvalidRefreshTokenError(authError)) return;
+
+    event.preventDefault();
+    handleInvalidRefreshToken(client.auth).catch(() => {});
+  });
+
+  invalidTokenRejectionHandlerAttached = true;
+}
+
 async function safeAuthCall(auth, method, args, fallbackResult) {
   try {
     const result = await auth[method](...args);
@@ -189,6 +210,7 @@ export function getSupabaseBrowserClient() {
 
   purgeMalformedStoredAuthTokens();
   browserClient = createBrowserClient(url, anonKey);
+  attachInvalidRefreshTokenRejectionHandler(browserClient);
   sanitizeInitialSession(browserClient);
   return browserClient;
 }

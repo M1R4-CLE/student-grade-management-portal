@@ -402,13 +402,14 @@ export default function PageShell({
 
           .mobile-drawer-backdrop,
           .mobile-right-drawer-backdrop {
-            padding-top: 56px;
             box-sizing: border-box;
           }
 
           .mobile-drawer,
           .mobile-right-drawer {
-            height: calc(100% - 56px);
+            height: 100%;
+            padding-top: 0;
+            padding-bottom: 0;
           }
 
           .shell-sidebar,
