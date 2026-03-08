@@ -1,6 +1,6 @@
 :root {
   /* Font */
-  --font-main: var(--font-poppins);
+  --font-main: "Segoe UI";
 
   /* Brand Colors */
   --blue-main: #2f6fb3;
